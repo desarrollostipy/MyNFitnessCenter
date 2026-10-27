@@ -4,12 +4,17 @@ const TZ = 'America/Asuncion'
 
 const moneyFmt = new Intl.NumberFormat('es-PY', { maximumFractionDigits: 0, useGrouping: true })
 
+/** 1250000 → "1.250.000" */
+export function formatThousands(amount: number | bigint): string {
+  // es-PY ya agrupa con punto; se fuerza por si el navegador no trae la localización.
+  // \s también cubre los espacios no separables que usan algunas localizaciones.
+  return moneyFmt.format(amount).replace(/[\s,]/g, '.')
+}
+
 /** 1250000 → "G. 1.250.000" */
 export function formatPYG(amount: number | bigint | null | undefined): string {
   if (amount === null || amount === undefined) return '—'
-  // es-PY ya agrupa con punto; se fuerza por si el navegador no trae la localización.
-  const digits = moneyFmt.format(amount).replace(/[\s,\u00a0]/g, '.')
-  return `G. ${digits}`
+  return `G. ${formatThousands(amount)}`
 }
 
 const dateFmt = new Intl.DateTimeFormat('es-PY', {

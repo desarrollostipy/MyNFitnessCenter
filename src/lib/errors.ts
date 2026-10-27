@@ -20,6 +20,7 @@ export function errorMessage(err: unknown): string {
   if (e.code === '42501') return 'No tiene permisos para realizar esta operación.'
   if (e.code === '23505') return 'El registro ya existe (dato duplicado).'
   if (e.code === '23503') return 'El registro está relacionado con otros datos.'
+  if (e.code === '23514') return 'Los datos no cumplen las reglas de validación. Revise los valores ingresados.'
   if (e.code === 'P0001') return msg // errores de negocio lanzados por las RPC, ya en español
   if (msg.includes('Failed to fetch')) return 'Sin conexión con el servidor. Verifique su internet.'
   return msg

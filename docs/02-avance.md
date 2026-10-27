@@ -3,7 +3,7 @@
 | # | Incremento | Estado | Fecha |
 |---|---|---|---|
 | 1 | Base: organización, auth, roles, auditoría, layout, usuarios | **Construido y probado localmente** — pendiente de verificar contra un proyecto Supabase real y Netlify | 27/10/2026 |
-| 2 | Configuración (planes, servicios, medios de pago) + página pública + leads | Pendiente | — |
+| 2 | Configuración (planes, servicios, medios de pago) + página pública + leads | **Construido y probado localmente** — pendiente de verificar contra Supabase real | 28/10/2026 |
 | 3–13 | Ver plan en `01-arquitectura-etapa1.md` §7 | Pendiente | — |
 
 ---
@@ -42,8 +42,40 @@
 - [ ] Invitación por email — requiere desplegar la Edge Function.
 - [ ] Recarga de ruta interna en Netlify — requiere desplegar.
 
-### Problemas conocidos / decisiones
+### Problemas conocidos / decisiones (Incremento 1)
 - Las pruebas de BD usan PGlite con un *stub* mínimo de `auth` (no hay Docker en el equipo). Con Docker se puede usar además `supabase start` + `supabase db reset`.
 - El registro público de cuentas está deshabilitado (sólo por invitación). Los futuros alumnos usarán el formulario público sin cuenta (Incremento 2).
 - Bundle JS de ~660 kB: se dividirá por rutas (lazy) en un incremento posterior.
 - Los tipos TS de la base se generarán con `supabase gen types` cuando el proyecto esté enlazado.
+
+---
+
+## Incremento 2 — Catálogo, sitio público y prospectos
+
+### Entregado
+**Base de datos** — `supabase/migrations/20261028000001_catalog_and_leads.sql`
+- `services`: duración, precio, política de cancelación (horas), si la ausencia consume crédito, si genera comisión, visible en web. `capacity = 1` forzado (clases grupales → Etapa 3).
+- `membership_plans`: tipos mensual/trimestral/anual/por sesiones/personalizado; restricciones en la base: una sola unidad de vigencia, meses fijos por tipo (1/3/12), planes por sesiones con ≥ 1 sesión, sesiones incluidas exigen servicio, precio ≥ 0, máximo 20 beneficios.
+- `payment_methods`: `affects_cash` distingue efectivo físico; código inmutable (se usará en conciliación). Seed: Efectivo, Transferencia, Tarjeta.
+- `leads` + RPC `submit_lead` (anónimo): normaliza teléfono/email, exige al menos un contacto, sólo acepta planes/servicios publicados, fecha preferida ≤ 90 días, antispam de 3 solicitudes por contacto cada 24 h. El anónimo no tiene ningún permiso sobre la tabla.
+- Auditoría automática (`app.audit_row`) de altas y cambios en planes, servicios y medios de pago (incluye precio anterior y nuevo).
+- Sin borrado físico: planes, servicios y medios se desactivan.
+
+**Frontend**
+- Admin → Catálogo: Planes, Servicios, Medios de pago (alta/edición con validación, importe con separador de miles, activar/desactivar con confirmación).
+- Admin/Tesorero → Comercial: Prospectos (filtro por estado, búsqueda, paginación, ficha con WhatsApp/email, estado y notas internas; registra primer contacto).
+- Sitio público con menú responsive: Inicio (planes destacados), Planes, Servicios, Clase de prueba, Inscripción, Contacto. Formulario con consentimiento de contacto y campo trampa antibots.
+
+### Pruebas ejecutadas (28/10/2026)
+- `npm run test:db` → 32/32 (16 nuevas): restricciones de planes y servicios, tesorero sin escritura en catálogo, anónimo ve sólo planes públicos y activos, staff ve los ocultos, medios de pago invisibles al anónimo y código inmutable, `submit_lead` (alta, validaciones, plan no publicado, antispam), anónimo sin lectura ni inserción directa en leads, tesorero gestiona leads y usuario sin rol no los ve, auditoría de servicios.
+- `npm test`, `npm run lint`, `npm run build` sin errores.
+- Revisión visual en navegador (sin backend): sitio público en escritorio y 375 px sin desbordamiento horizontal; validaciones del formulario de contacto.
+
+### Criterios de aceptación
+- [x] Un anónimo ve planes públicos y envía una consulta; no puede leer prospectos (probado en BD).
+- [x] Sólo el admin crea/modifica planes, servicios y medios de pago (probado en BD).
+- [ ] Flujo completo en navegador contra Supabase real (requiere el proyecto creado).
+
+### Pendiente / decisiones
+- "Consultar el estado de su solicitud" para futuros alumnos con cuenta se difiere: en Etapa 1 las cuentas son sólo por invitación. Se resolverá junto con el CRM (Etapa 3) o cuando se habilite el registro.
+- Si el formulario tiene varios errores, el aviso "teléfono o email" aparece después de corregir los demás campos (limitación de validación encadenada; no afecta la seguridad: el servidor también lo exige).

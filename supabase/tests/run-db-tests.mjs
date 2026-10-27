@@ -192,5 +192,172 @@ await test('con dos admins, uno puede quitarse el rol', async () => {
   assert(r.rows[0].n === 1, 'conteo de admins incorrecto')
 })
 
+// ---------------------------------------------------------------------
+// Incremento 2: catálogo y prospectos
+// ---------------------------------------------------------------------
+console.log('\nIncremento 2')
+const admin2 = other // tras la prueba anterior, "other" es el único admin
+const treasurer = plain
+
+let serviceId
+let publicPlanId
+let hiddenPlanId
+
+await test('admin crea un servicio y queda auditado', async () => {
+  await as(admin2)
+  const r = await db.query(
+    `insert into public.services (gym_id, name, duration_minutes, price) values ($1, 'Entrenamiento personalizado', 60, 80000) returning id`,
+    [GYM],
+  )
+  serviceId = r.rows[0].id
+  await db.exec('reset role')
+  const a = await db.query(`select count(*)::int as n from public.audit_logs where action = 'services.insert'`)
+  assert(a.rows[0].n === 1, 'sin auditoría')
+})
+
+await test('servicio grupal (capacidad > 1) rechazado en Etapa 1', async () => {
+  await as(admin2)
+  await expectError(
+    db.query(`insert into public.services (gym_id, name, duration_minutes, price, capacity) values ($1, 'Funcional', 45, 0, 10)`, [GYM]),
+    '23514',
+  )
+})
+
+await test('admin crea planes válidos', async () => {
+  await as(admin2)
+  publicPlanId = (
+    await db.query(
+      `insert into public.membership_plans (gym_id, name, plan_type, price, duration_months, benefits)
+       values ($1, 'Mensual libre', 'monthly', 250000, 1, '{"Acceso a sala"}') returning id`,
+      [GYM],
+    )
+  ).rows[0].id
+  hiddenPlanId = (
+    await db.query(
+      `insert into public.membership_plans (gym_id, name, plan_type, price, duration_days, included_sessions, included_service_id, is_public)
+       values ($1, 'Pack 8 sesiones', 'sessions', 560000, 30, 8, $2, false) returning id`,
+      [GYM, serviceId],
+    )
+  ).rows[0].id
+})
+
+await test('plan mensual con duración incorrecta rechazado', async () => {
+  await as(admin2)
+  await expectError(
+    db.query(`insert into public.membership_plans (gym_id, name, plan_type, price, duration_months) values ($1, 'Malo', 'monthly', 1, 2)`, [GYM]),
+    '23514',
+  )
+})
+
+await test('plan con dos duraciones o sin servicio para sesiones rechazado', async () => {
+  await as(admin2)
+  await expectError(
+    db.query(`insert into public.membership_plans (gym_id, name, plan_type, price, duration_months, duration_days) values ($1, 'Doble', 'custom', 1, 1, 30)`, [GYM]),
+    '23514',
+  )
+  await expectError(
+    db.query(`insert into public.membership_plans (gym_id, name, plan_type, price, duration_days, included_sessions) values ($1, 'SinServ', 'sessions', 1, 30, 4)`, [GYM]),
+    '23514',
+  )
+})
+
+await test('precio negativo rechazado', async () => {
+  await as(admin2)
+  await expectError(
+    db.query(`insert into public.membership_plans (gym_id, name, plan_type, price, duration_months) values ($1, 'Neg', 'custom', -1, 1)`, [GYM]),
+    '23514',
+  )
+})
+
+await test('tesorero no puede crear ni modificar planes', async () => {
+  await as(treasurer)
+  await expectError(
+    db.query(`insert into public.membership_plans (gym_id, name, plan_type, price, duration_months) values ($1, 'T', 'monthly', 1, 1)`, [GYM]),
+  )
+  const u = await db.query(`update public.membership_plans set price = 1 where id = $1`, [publicPlanId])
+  assert(u.affectedRows === 0, 'modificó el precio')
+})
+
+await test('anónimo ve sólo planes públicos y activos', async () => {
+  await as(null)
+  const r = await db.query(`select id from public.membership_plans`)
+  assert(r.rows.length === 1 && r.rows[0].id === publicPlanId, `vio ${r.rows.length} planes`)
+})
+
+await test('plan desactivado deja de ser visible al público', async () => {
+  await as(admin2)
+  await db.query(`update public.membership_plans set is_active = false where id = $1`, [publicPlanId])
+  await as(null)
+  assert((await db.query(`select id from public.membership_plans`)).rows.length === 0, 'sigue visible')
+  await as(admin2)
+  await db.query(`update public.membership_plans set is_active = true where id = $1`, [publicPlanId])
+})
+
+await test('staff ve planes no públicos', async () => {
+  await as(treasurer)
+  assert((await db.query(`select id from public.membership_plans`)).rows.length === 2, 'no ve el plan oculto')
+})
+
+await test('medios de pago: tesorero lee, anónimo no; código inmutable', async () => {
+  await as(treasurer)
+  assert((await db.query(`select * from public.payment_methods`)).rows.length === 3, 'tesorero no ve medios')
+  await as(null)
+  assert((await db.query(`select * from public.payment_methods`)).rows.length === 0, 'anónimo ve medios')
+  await as(admin2)
+  await expectError(db.query(`update public.payment_methods set code = 'efectivo' where code = 'cash'`), 'P0001')
+})
+
+await test('anónimo envía consulta con submit_lead', async () => {
+  await as(null)
+  await db.query(`select public.submit_lead($1, 'Ana Gómez', '0981 123-456', null, 'trial_class', null, $2, null, 'Quiero probar')`, [
+    GYM,
+    serviceId,
+  ])
+  await db.exec('reset role')
+  const r = await db.query(`select phone, status from public.leads`)
+  assert(r.rows.length === 1 && r.rows[0].phone === '0981123456' && r.rows[0].status === 'new', 'lead mal guardado')
+})
+
+await test('anónimo no puede leer ni insertar leads directamente', async () => {
+  await as(null)
+  await expectError(db.query(`select * from public.leads`), '42501')
+  await expectError(
+    db.query(`insert into public.leads (gym_id, full_name, phone) values ($1, 'X', '0981000000')`, [GYM]),
+    '42501',
+  )
+})
+
+await test('submit_lead valida contacto y plan no publicado', async () => {
+  await as(null)
+  await expectError(db.query(`select public.submit_lead($1, 'Sin Contacto', null, null, 'info')`, [GYM]), 'P0001')
+  await expectError(db.query(`select public.submit_lead($1, 'Mail Malo', null, 'no-es-mail', 'info')`, [GYM]), 'P0001')
+  await expectError(
+    db.query(`select public.submit_lead($1, 'Oculto', '0981999999', null, 'enrollment', $2)`, [GYM, hiddenPlanId]),
+    'P0001',
+  )
+})
+
+await test('submit_lead limita a 3 solicitudes por contacto en 24 h', async () => {
+  await as(null)
+  for (let i = 0; i < 3; i++) {
+    await db.query(`select public.submit_lead($1, 'Spam', null, 'spam@x.com', 'info')`, [GYM])
+  }
+  await expectError(db.query(`select public.submit_lead($1, 'Spam', null, 'SPAM@x.com', 'info')`, [GYM]), 'P0001')
+})
+
+await test('tesorero ve y gestiona prospectos; usuario sin rol no', async () => {
+  await as(treasurer)
+  const r = await db.query(`update public.leads set status = 'contacted', contacted_at = now() where full_name = 'Ana Gómez'`)
+  assert(r.affectedRows === 1, 'no actualizó')
+  const noRole = await mkUserRaw('sinrol@myn.test')
+  await as(noRole)
+  assert((await db.query(`select * from public.leads`)).rows.length === 0, 'usuario sin rol ve leads')
+})
+
+async function mkUserRaw(email) {
+  await db.exec('reset role')
+  return (await db.query(`insert into auth.users (email) values ($1) returning id`, [email])).rows[0].id
+}
+
 console.log(`\n${passed} ok, ${failed} fallidas`)
 process.exit(failed ? 1 : 0)

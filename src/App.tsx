@@ -16,6 +16,13 @@ import { ProfilePage } from '@/features/account/ProfilePage'
 import { UsersPage } from '@/features/users/UsersPage'
 import { AuditPage } from '@/features/audit/AuditPage'
 import { GymSettingsPage } from '@/features/settings/GymSettingsPage'
+import { PublicLayout } from '@/features/public/PublicLayout'
+import { PublicPlansPage, PublicServicesPage } from '@/features/public/PublicCatalogPages'
+import { ContactPage } from '@/features/public/ContactPage'
+import { PlansPage } from '@/features/catalog/PlansPage'
+import { ServicesPage } from '@/features/catalog/ServicesPage'
+import { PaymentMethodsPage } from '@/features/catalog/PaymentMethodsPage'
+import { LeadsPage } from '@/features/leads/LeadsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,7 +46,12 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<PublicHomePage />} />
+            <Route element={<PublicLayout />}>
+              <Route path="/" element={<PublicHomePage />} />
+              <Route path="/planes" element={<PublicPlansPage />} />
+              <Route path="/servicios" element={<PublicServicesPage />} />
+              <Route path="/contacto" element={<ContactPage />} />
+            </Route>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/recuperar" element={<ForgotPasswordPage />} />
             <Route path="/restablecer" element={<ResetPasswordPage />} />
@@ -57,6 +69,10 @@ export default function App() {
               <Route path="/admin/usuarios" element={<RequireRole roles={['admin']}><UsersPage /></RequireRole>} />
               <Route path="/admin/auditoria" element={<RequireRole roles={['admin', 'accountant']}><AuditPage /></RequireRole>} />
               <Route path="/admin/configuracion" element={<RequireRole roles={['admin']}><GymSettingsPage /></RequireRole>} />
+              <Route path="/admin/planes" element={<RequireRole roles={['admin']}><PlansPage /></RequireRole>} />
+              <Route path="/admin/servicios" element={<RequireRole roles={['admin']}><ServicesPage /></RequireRole>} />
+              <Route path="/admin/medios-de-pago" element={<RequireRole roles={['admin']}><PaymentMethodsPage /></RequireRole>} />
+              <Route path="/admin/prospectos" element={<RequireRole roles={['admin', 'treasurer']}><LeadsPage /></RequireRole>} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

@@ -43,6 +43,98 @@ export interface AdminUserRow {
   created_at: string
 }
 
+export interface Service {
+  id: string
+  gym_id: string
+  name: string
+  description: string | null
+  duration_minutes: number
+  price: number
+  capacity: number
+  is_bookable: boolean
+  is_commissionable: boolean
+  cancellation_hours: number
+  no_show_consumes_credit: boolean
+  is_public: boolean
+  is_active: boolean
+  sort_order: number
+}
+
+export type PlanType = 'monthly' | 'quarterly' | 'annual' | 'sessions' | 'custom'
+
+export const PLAN_TYPE_LABELS: Record<PlanType, string> = {
+  monthly: 'Mensual',
+  quarterly: 'Trimestral',
+  annual: 'Anual',
+  sessions: 'Por sesiones',
+  custom: 'Personalizado',
+}
+
+/** Duración fija en meses para los tipos estándar. */
+export const FIXED_PLAN_MONTHS: Partial<Record<PlanType, number>> = { monthly: 1, quarterly: 3, annual: 12 }
+
+export interface MembershipPlan {
+  id: string
+  gym_id: string
+  name: string
+  description: string | null
+  plan_type: PlanType
+  price: number
+  duration_months: number | null
+  duration_days: number | null
+  included_sessions: number
+  included_service_id: string | null
+  benefits: string[]
+  conditions: string | null
+  is_public: boolean
+  is_active: boolean
+  sort_order: number
+}
+
+export interface PaymentMethod {
+  id: string
+  gym_id: string
+  code: string
+  name: string
+  affects_cash: boolean
+  is_active: boolean
+  sort_order: number
+}
+
+export type LeadInterest = 'info' | 'enrollment' | 'trial_class'
+export type LeadStatus = 'new' | 'contacted' | 'converted' | 'lost'
+
+export const LEAD_INTEREST_LABELS: Record<LeadInterest, string> = {
+  info: 'Consulta',
+  enrollment: 'Inscripción',
+  trial_class: 'Clase de prueba',
+}
+
+export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
+  new: 'Nuevo',
+  contacted: 'Contactado',
+  converted: 'Convertido',
+  lost: 'Perdido',
+}
+
+export interface Lead {
+  id: string
+  full_name: string
+  phone: string | null
+  email: string | null
+  interest: LeadInterest
+  plan_id: string | null
+  service_id: string | null
+  preferred_date: string | null
+  message: string | null
+  status: LeadStatus
+  internal_notes: string | null
+  contacted_at: string | null
+  created_at: string
+  membership_plans: { name: string } | null
+  services: { name: string } | null
+}
+
 export interface AuditLog {
   id: number
   actor_id: string | null

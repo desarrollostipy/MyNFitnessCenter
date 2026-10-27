@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { Building2, History, UserRound, Users } from 'lucide-react'
+import { Building2, CreditCard, Dumbbell, History, IdCard, Inbox, UserRound, Users } from 'lucide-react'
 import type { AppRole } from '@/types/domain'
 
 export interface NavItem {
@@ -16,6 +16,18 @@ export interface NavSection {
 
 // Sólo se listan módulos IMPLEMENTADOS. Cada incremento agrega sus entradas aquí.
 export const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'Comercial',
+    items: [{ label: 'Prospectos', to: '/admin/prospectos', icon: Inbox, roles: ['admin', 'treasurer'] }],
+  },
+  {
+    title: 'Catálogo',
+    items: [
+      { label: 'Planes', to: '/admin/planes', icon: IdCard, roles: ['admin'] },
+      { label: 'Servicios', to: '/admin/servicios', icon: Dumbbell, roles: ['admin'] },
+      { label: 'Medios de pago', to: '/admin/medios-de-pago', icon: CreditCard, roles: ['admin'] },
+    ],
+  },
   {
     title: 'Administración',
     items: [
@@ -39,7 +51,8 @@ export function visibleSections(hasRole: (...r: AppRole[]) => boolean): NavSecti
 
 /** Primera pantalla útil según los roles del usuario. */
 export function homePathFor(hasRole: (...r: AppRole[]) => boolean): string {
-  if (hasRole('admin')) return '/admin/usuarios'
+  if (hasRole('admin')) return '/admin/prospectos'
+  if (hasRole('treasurer')) return '/admin/prospectos'
   if (hasRole('accountant')) return '/admin/auditoria'
   return '/cuenta'
 }
