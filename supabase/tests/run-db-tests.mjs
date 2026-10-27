@@ -114,8 +114,8 @@ await test('app.today() devuelve fecha', async () => {
 
 await test('anónimo no ve gimnasios ni perfiles', async () => {
   await as(null)
-  assert((await db.query(`select * from public.gyms`)).rows.length === 0, 've gyms')
-  assert((await db.query(`select * from public.user_profiles`)).rows.length === 0, 've perfiles')
+  await expectError(db.query(`select * from public.gyms`), '42501')
+  await expectError(db.query(`select * from public.user_profiles`), '42501')
 })
 
 await test('usuario sin rol no ve el gimnasio ni otros perfiles', async () => {
@@ -187,9 +187,8 @@ await test('admin modifica el gimnasio y queda auditado', async () => {
 
 await test('nadie puede borrar ni editar la auditoría', async () => {
   await as(admin)
-  const d = await db.query(`delete from public.audit_logs`)
-  const u = await db.query(`update public.audit_logs set reason = 'x'`)
-  assert(d.affectedRows === 0 && u.affectedRows === 0, 'auditoría alterada')
+  await expectError(db.query(`delete from public.audit_logs`), '42501')
+  await expectError(db.query(`update public.audit_logs set reason = 'x'`), '42501')
 })
 
 await test('no se puede quitar el último administrador', async () => {
@@ -316,7 +315,7 @@ await test('medios de pago: tesorero lee, anónimo no; código inmutable', async
   await as(treasurer)
   assert((await db.query(`select * from public.payment_methods`)).rows.length === 3, 'tesorero no ve medios')
   await as(null)
-  assert((await db.query(`select * from public.payment_methods`)).rows.length === 0, 'anónimo ve medios')
+  await expectError(db.query(`select * from public.payment_methods`), '42501')
   await as(admin2)
   await expectError(db.query(`update public.payment_methods set code = 'efectivo' where code = 'cash'`), 'P0001')
 })
@@ -514,6 +513,15 @@ async function mkUserRaw(email) {
   await db.exec('reset role')
   return (await db.query(`insert into auth.users (email) values ($1) returning id`, [email])).rows[0].id
 }
+
+console.log('\nPrivilegios')
+
+await test('nadie borra físicamente alumnos, planes ni asignaciones', async () => {
+  await as(admin2)
+  await expectError(db.query(`delete from public.students`), '42501')
+  await expectError(db.query(`delete from public.membership_plans`), '42501')
+  await expectError(db.query(`delete from public.trainer_student_assignments`), '42501')
+})
 
 console.log(`\n${passed} ok, ${failed} fallidas`)
 process.exit(failed ? 1 : 0)
