@@ -115,27 +115,54 @@ end $$;
 -- Ponerlas al día como lo haría el proceso diario (renovaciones y vencimientos).
 select app.run_daily_membership_jobs();
 
--- Cobros simulados SÓLO PARA LA DEMO (el módulo de caja llega en el Incremento 5):
--- todos al día salvo tres alumnos morosos (4, 9 y 12) y las cuotas del período actual.
-update public.charges c
-set paid_amount = c.total, status = 'paid'
-where c.student_id::text like 'de%'
-  and c.status in ('pending', 'overdue', 'partial')
-  and c.due_on < app.today() - 2
-  and c.student_id not in (
-    'de000000-0000-4000-8000-000000000404',
-    'de000000-0000-4000-8000-000000000409',
-    'de000000-0000-4000-8000-000000000412'
-  );
+-- Cobros de ejemplo con la misma lógica del sistema (recibo interno, asignación a cuotas).
+-- Todos al día salvo tres alumnos morosos (4, 9 y 12) y las cuotas del período actual.
+-- Se usan transferencias / tarjeta para no alterar la caja de efectivo real.
+do $$
+declare
+  c record;
+  v_method uuid;
+  i int := 0;
+begin
+  for c in
+    select ch.* from public.charges ch
+    where ch.student_id::text like 'de%'
+      and ch.status in ('pending', 'overdue', 'partial')
+      and ch.due_on < app.today() - 2
+      and ch.student_id not in (
+        'de000000-0000-4000-8000-000000000404',
+        'de000000-0000-4000-8000-000000000409',
+        'de000000-0000-4000-8000-000000000412'
+      )
+    order by ch.due_on, ch.created_at
+  loop
+    i := i + 1;
+    select id into v_method from public.payment_methods
+    where gym_id = c.gym_id and code = case when i % 3 = 0 then 'card' else 'transfer' end;
+    perform app.post_payment(
+      c.student_id, v_method, c.total - c.paid_amount,
+      jsonb_build_array(jsonb_build_object('charge_id', c.id, 'amount', c.total - c.paid_amount)),
+      'DEMO-' || lpad(i::text, 4, '0'), 'Cobro de demostración',
+      ('de000000-0000-4000-8000-' || lpad(to_hex(900000 + i), 12, '0'))::uuid,
+      (c.due_on + 1)::timestamp at time zone 'America/Asuncion' + interval '10 hours'
+    );
+  end loop;
 
--- Pago parcial de ejemplo.
-update public.charges c
-set paid_amount = c.total / 2, status = 'overdue'
-where c.id = (
-  select id from public.charges
-  where student_id = 'de000000-0000-4000-8000-000000000409' and status = 'overdue'
-  order by due_on desc limit 1
-);
+  -- Pago parcial de ejemplo (alumna 9: mitad de la cuota vencida más reciente).
+  select * into c from public.charges
+  where student_id = 'de000000-0000-4000-8000-000000000409' and status = 'overdue' and paid_amount = 0
+  order by due_on desc limit 1;
+  if c.id is not null then
+    select id into v_method from public.payment_methods where gym_id = c.gym_id and code = 'transfer';
+    perform app.post_payment(
+      c.student_id, v_method, c.total / 2,
+      jsonb_build_array(jsonb_build_object('charge_id', c.id, 'amount', c.total / 2)),
+      'DEMO-PARCIAL', 'Pago parcial de demostración',
+      'de000000-0000-4000-8000-0000009fffff'::uuid,
+      (c.due_on + 3)::timestamp at time zone 'America/Asuncion' + interval '18 hours'
+    );
+  end if;
+end $$;
 
 -- Créditos usados de ejemplo (pack de sesiones).
 update public.session_entitlements e set used = 3
@@ -164,4 +191,5 @@ select
   (select count(*) from public.subscriptions where student_id::text like 'de%') as membresias,
   (select count(*) from public.charges where student_id::text like 'de%') as cuotas,
   (select count(*) from public.charges where student_id::text like 'de%' and status = 'overdue') as cuotas_vencidas,
+  (select count(*) from public.payments where student_id::text like 'de%') as cobros,
   (select count(*) from public.leads where id::text like 'de%') as prospectos;

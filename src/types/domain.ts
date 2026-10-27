@@ -250,7 +250,57 @@ export interface MembershipStatusRow {
   oldest_overdue_on: string | null
 }
 
-export const fullName =(p: { first_name: string; last_name: string }) => `${p.first_name} ${p.last_name}`
+export interface CashSession {
+  id: string
+  business_date: string
+  status: 'open' | 'closed'
+  opened_by: string
+  opened_at: string
+  opening_amount: number
+  closed_at: string | null
+  expected_amount: number | null
+  counted_amount: number | null
+  difference: number | null
+  close_notes: string | null
+}
+
+export type CashSource = 'payment' | 'payment_void' | 'expense' | 'payout' | 'adjustment'
+
+export const CASH_SOURCE_LABELS: Record<CashSource, string> = {
+  payment: 'Cobro',
+  payment_void: 'Anulación de cobro',
+  expense: 'Egreso',
+  payout: 'Pago a profesor',
+  adjustment: 'Movimiento manual',
+}
+
+export interface CashMovement {
+  id: string
+  direction: 'in' | 'out'
+  amount: number
+  source: CashSource
+  source_id: string | null
+  note: string | null
+  created_at: string
+}
+
+export interface Payment {
+  id: string
+  student_id: string
+  method_id: string
+  amount: number
+  paid_at: string
+  reference: string | null
+  notes: string | null
+  receipt_number: string
+  status: 'posted' | 'voided'
+  void_reason: string | null
+  voided_at: string | null
+  students?: { first_name: string; last_name: string; document_number: string } | null
+  payment_methods?: { name: string; affects_cash: boolean } | null
+}
+
+export const fullName = (p:{ first_name: string; last_name: string }) => `${p.first_name} ${p.last_name}`
 
 export interface AuditLog {
   id: number

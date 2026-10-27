@@ -657,6 +657,124 @@ await test('anular cuota exige motivo; entrenador no ve cuotas; alumno ve las su
   assert(mine.rows.length === 1 && mine.rows[0].student_id === studentA, 'alumno ve cuotas ajenas o ninguna')
 })
 
+// ---------------------------------------------------------------------
+// Incremento 5: caja y cobros
+// ---------------------------------------------------------------------
+console.log('\nIncremento 5')
+const cashId = (await db.query(`select id from public.payment_methods where code = 'cash'`)).rows[0].id
+const transferId = (await db.query(`select id from public.payment_methods where code = 'transfer'`)).rows[0].id
+const openBalance = async (sid) =>
+  Number((await db.query(`select coalesce(sum(total - paid_amount), 0) as b from public.charges where student_id = $1 and status in ('pending','partial','overdue')`, [sid])).rows[0].b)
+let sessionId, payId
+const key = (n) => `22222222-2222-4222-8222-${String(n).padStart(12, '0')}`
+
+await test('cobro en efectivo sin caja abierta rechazado', async () => {
+  await as(treasurer)
+  await expectError(db.query(`select public.register_payment($1, $2, 1000, null, null, null, $3)`, [studentA, cashId, key(1)]), 'P0001')
+})
+
+await test('tesorero abre caja; no puede haber dos abiertas', async () => {
+  await as(treasurer)
+  sessionId = (await db.query(`select public.open_cash_session($1, 100000) as id`, [GYM])).rows[0].id
+  await expectError(db.query(`select public.open_cash_session($1, 0)`, [GYM]), 'P0001')
+})
+
+await test('cobro parcial en efectivo: asigna a la cuota más antigua, recibo y movimiento de caja', async () => {
+  await as(treasurer)
+  const before = await openBalance(studentA)
+  payId = (await db.query(`select public.register_payment($1, $2, 150000, null, null, null, $3) as id`, [studentA, cashId, key(2)])).rows[0].id
+  await db.exec('reset role')
+  const p = (await db.query(`select receipt_number, cash_session_id from public.payments where id = $1`, [payId])).rows[0]
+  assert(/^RI-\d{6}$/.test(p.receipt_number) && p.cash_session_id === sessionId, JSON.stringify(p))
+  assert((await openBalance(studentA)) === before - 150000, 'saldo no bajó')
+  const m = (await db.query(`select direction, amount from public.cash_movements where source_id = $1`, [payId])).rows
+  assert(m.length === 1 && m[0].direction === 'in' && Number(m[0].amount) === 150000, 'movimiento de caja')
+  const oldest = (await db.query(`select c.due_on from public.payment_allocations a join public.charges c on c.id = a.charge_id where a.payment_id = $1 order by c.due_on limit 1`, [payId])).rows[0].due_on
+  const minDue = (await db.query(`select min(c.due_on) as d from public.charges c where c.student_id = $1 and c.status <> 'voided'`, [studentA])).rows[0].d
+  assert(+oldest === +minDue, 'no asignó a la más antigua')
+})
+
+await test('doble envío con la misma clave = un solo pago', async () => {
+  await as(treasurer)
+  const again = (await db.query(`select public.register_payment($1, $2, 150000, null, null, null, $3) as id`, [studentA, cashId, key(2)])).rows[0].id
+  assert(again === payId, 'devolvió otro pago')
+  await db.exec('reset role')
+  assert((await db.query(`select count(*)::int as n from public.payments`)).rows[0].n === 1, 'duplicó')
+  assert((await db.query(`select count(*)::int as n from public.cash_movements`)).rows[0].n === 1, 'duplicó movimiento')
+})
+
+await test('no se puede cobrar más que el saldo pendiente', async () => {
+  await as(treasurer)
+  const b = await openBalance(studentA)
+  await expectError(db.query(`select public.register_payment($1, $2, $3, null, null, null, $4)`, [studentA, transferId, b + 1, key(3)]), 'P0001')
+})
+
+await test('asignación manual: no puede superar el saldo de la cuota ni descuadrar', async () => {
+  await as(treasurer)
+  const c = (await db.query(`select id, total - paid_amount as bal from public.charges where student_id = $1 and status in ('pending','partial','overdue') order by due_on desc limit 1`, [studentA])).rows[0]
+  await expectError(db.query(`select public.register_payment($1, $2, $3, $4::jsonb, null, null, $5)`, [studentA, transferId, Number(c.bal) + 1, JSON.stringify([{ charge_id: c.id, amount: Number(c.bal) + 1 }]), key(4)]), 'P0001')
+  await expectError(db.query(`select public.register_payment($1, $2, 1000, $3::jsonb, null, null, $4)`, [studentA, transferId, JSON.stringify([{ charge_id: c.id, amount: 500 }]), key(5)]), 'P0001')
+  const id = (await db.query(`select public.register_payment($1, $2, $3, $4::jsonb, 'TRF 123', null, $5) as id`, [studentA, transferId, Number(c.bal), JSON.stringify([{ charge_id: c.id, amount: Number(c.bal) }]), key(6)])).rows[0].id
+  await db.exec('reset role')
+  assert((await db.query(`select status from public.charges where id = $1`, [c.id])).rows[0].status === 'paid', 'no quedó pagada')
+  assert((await db.query(`select count(*)::int as n from public.cash_movements where source_id = $1`, [id])).rows[0].n === 0, 'transferencia movió la caja')
+})
+
+await test('cuota con pagos no se puede anular', async () => {
+  await as(admin2)
+  const c = (await db.query(`select charge_id from public.payment_allocations where payment_id = $1 limit 1`, [payId])).rows[0].charge_id
+  await expectError(db.query(`select public.void_charge($1, 'Prueba de anulación')`, [c]), 'P0001')
+})
+
+await test('tesorero no puede anular pagos; admin sí y se revierte saldo y caja', async () => {
+  await as(treasurer)
+  await expectError(db.query(`select public.void_payment($1, 'Error de carga')`, [payId]), '42501')
+  const before = await openBalance(studentA)
+  await as(admin2)
+  await db.query(`select public.void_payment($1, 'Error de carga')`, [payId])
+  await expectError(db.query(`select public.void_payment($1, 'Otra vez')`, [payId]), 'P0001')
+  assert((await openBalance(studentA)) === before + 150000, 'no devolvió el saldo')
+  await db.exec('reset role')
+  const out = (await db.query(`select count(*)::int as n from public.cash_movements where source = 'payment_void' and direction = 'out'`)).rows[0].n
+  assert(out === 1, 'sin contramovimiento')
+})
+
+await test('nadie escribe pagos, caja ni recibos directamente', async () => {
+  await as(admin2)
+  await expectError(db.query(`update public.payments set amount = 1`), '42501')
+  await expectError(db.query(`insert into public.cash_movements (gym_id, cash_session_id, direction, amount, source) values ($1, $2, 'in', 1, 'adjustment')`, [GYM, sessionId]), '42501')
+  await expectError(db.query(`update public.receipt_sequences set last_number = 0`), '42501')
+})
+
+await test('salida manual mayor al efectivo disponible rechazada; con concepto se registra', async () => {
+  await as(treasurer)
+  await expectError(db.query(`select public.register_cash_adjustment($1, 'out', 999999999, 'Depósito banco')`, [sessionId]), 'P0001')
+  await db.query(`select public.register_cash_adjustment($1, 'out', 50000, 'Depósito en banco')`, [sessionId])
+})
+
+await test('cierre: calcula esperado y exige motivo si hay diferencia', async () => {
+  await as(treasurer)
+  // apertura 100.000 + cobro 150.000 − anulación 150.000 − depósito 50.000 = 50.000
+  await expectError(db.query(`select public.close_cash_session($1, 40000, null)`, [sessionId]), 'P0001')
+  const r = (await db.query(`select public.close_cash_session($1, 40000, 'Faltante a revisar') as r`, [sessionId])).rows[0].r
+  assert(r.expected === 50000 && r.difference === -10000, JSON.stringify(r))
+  await expectError(db.query(`select public.register_cash_adjustment($1, 'in', 1000, 'Tarde')`, [sessionId]), 'P0001')
+})
+
+await test('recibos correlativos sin duplicados', async () => {
+  await db.exec('reset role')
+  const r = (await db.query(`select receipt_number from public.payments order by receipt_number`)).rows.map((x) => x.receipt_number)
+  assert(r.length === 2 && r[0] === 'RI-000001' && r[1] === 'RI-000002', JSON.stringify(r))
+})
+
+await test('alumno ve sus pagos; entrenador no ve pagos ni caja', async () => {
+  await as(studentUser)
+  assert((await db.query(`select id from public.payments`)).rows.length === 2, 'alumno no ve sus pagos')
+  assert((await db.query(`select id from public.cash_sessions`)).rows.length === 0, 'alumno ve caja')
+  await as(trainerUser)
+  assert((await db.query(`select id from public.payments`)).rows.length === 0, 'entrenador ve pagos')
+})
+
 console.log('\nPrivilegios')
 
 await test('nadie borra físicamente alumnos, planes ni asignaciones', async () => {

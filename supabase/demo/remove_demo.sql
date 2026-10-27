@@ -13,6 +13,18 @@ create temp table demo_subs on commit drop as
 create temp table demo_periods on commit drop as
   select id from public.subscription_periods where subscription_id in (select id from demo_subs);
 
+create temp table demo_payments on commit drop as
+  select id from public.payments where student_id::text like 'de%';
+
+delete from public.cash_movements where source_id in (select id from demo_payments);
+delete from public.payment_allocations where payment_id in (select id from demo_payments);
+delete from public.payments where id in (select id from demo_payments);
+-- La numeración de recibos sigue desde el último recibo real.
+update public.receipt_sequences rs
+set last_number = coalesce((
+  select max(substring(p.receipt_number from '\d+$')::bigint) from public.payments p where p.gym_id = rs.gym_id
+), 0);
+
 delete from public.session_entitlements where subscription_period_id in (select id from demo_periods);
 delete from public.charges where student_id::text like 'de%';
 delete from public.subscription_pauses where subscription_id in (select id from demo_subs);
@@ -30,7 +42,7 @@ delete from public.services where id::text like 'de%';
 -- Registros de auditoría generados por la carga de demostración.
 delete from public.audit_logs
 where entity_id like 'de%'
-   or (entity in ('charges', 'subscriptions', 'subscription_periods') and (after ->> 'student_id' like 'de%' or before ->> 'student_id' like 'de%'));
+   or (entity in ('charges', 'subscriptions', 'subscription_periods', 'payments') and (after ->> 'student_id' like 'de%' or before ->> 'student_id' like 'de%'));
 
 commit;
 

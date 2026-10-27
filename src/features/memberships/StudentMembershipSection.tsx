@@ -28,6 +28,7 @@ import {
   useVoidCharge,
 } from './api'
 import { ChargeStatusBadge } from './chargeUi'
+import { StudentPaymentsCard } from '@/features/cash/StudentPaymentsCard'
 
 /** Resumen + membresías + cuotas del alumno (ficha). */
 export function StudentMembershipSection({ student }: { student: Student }) {
@@ -39,6 +40,7 @@ export function StudentMembershipSection({ student }: { student: Student }) {
       <div className="grid gap-6 lg:grid-cols-2">
         <SubscriptionsCard student={student} canEdit={isAdmin} />
         <ChargesCard studentId={student.id} canVoid={isAdmin} />
+        <StudentPaymentsCard studentId={student.id} />
       </div>
     </div>
   )
@@ -415,7 +417,7 @@ function ChargesCard({ studentId, canVoid }: { studentId: string; canVoid: boole
           </ul>
         )}
         <p className="mt-3 text-xs text-muted-foreground">
-          Los cobros se registran desde Caja (próximo incremento). Estos importes no son comprobantes fiscales.
+          Las cuotas son obligaciones internas, no comprobantes fiscales.
         </p>
       </CardContent>
       {voiding && (

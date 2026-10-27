@@ -1,5 +1,8 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  BadgeDollarSign,
+  Landmark,
+  Wallet,
   Building2,
   CreditCard,
   Dumbbell,
@@ -32,6 +35,14 @@ export interface NavSection {
 
 // Sólo se listan módulos IMPLEMENTADOS. Cada incremento agrega sus entradas aquí.
 export const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'Caja',
+    items: [
+      { label: 'Cobrar cuota', to: '/caja/cobrar', icon: Wallet, roles: ['admin', 'treasurer'], mobile: 0, short: 'Cobrar' },
+      { label: 'Caja', to: '/caja', icon: Landmark, roles: ['admin', 'treasurer'], mobile: 4 },
+      { label: 'Cobranzas', to: '/admin/cobros', icon: BadgeDollarSign, roles: ['admin', 'accountant', 'treasurer'] },
+    ],
+  },
   {
     title: 'Gestión',
     items: [

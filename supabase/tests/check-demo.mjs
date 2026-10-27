@@ -41,5 +41,6 @@ console.log('morosos:', st.rows)
 console.log('borrado:', await run('remove_demo.sql'))
 const left = await db.query(`
   select (select count(*) from public.charges)::int as cuotas, (select count(*) from public.subscriptions)::int as subs,
+         (select count(*) from public.payments)::int as pagos, (select coalesce(max(last_number), 0) from public.receipt_sequences)::int as ult_recibo,
          (select count(*) from public.audit_logs)::int as audit, (select count(*) from public.payment_methods)::int as medios`)
 console.log('restante (cuotas/subs/audit deben ser 0; medios 3):', left.rows[0])

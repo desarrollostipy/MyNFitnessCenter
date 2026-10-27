@@ -65,7 +65,7 @@ export function AppShell() {
 
   return (
     <div className="flex h-full">
-      <aside className="hidden w-64 shrink-0 lg:block">
+      <aside className="hidden w-64 shrink-0 lg:block print:hidden">
         <Sidebar />
       </aside>
 
@@ -86,10 +86,10 @@ export function AppShell() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-4 pt-[env(safe-area-inset-top)] lg:hidden">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-4 pt-[env(safe-area-inset-top)] lg:hidden print:hidden">
           <Brand />
         </header>
-        <main className="flex-1 overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <main className="flex-1 overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 print:overflow-visible print:pb-0">
           <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
             <Outlet />
           </div>
@@ -109,7 +109,7 @@ function BottomNav({ onMore }: { onMore: () => void }) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden"
       aria-label="Accesos rápidos"
     >
       {items.map((item) => (

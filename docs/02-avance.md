@@ -6,7 +6,8 @@
 | 2 | Configuración (planes, servicios, medios de pago) + página pública + leads | **Construido y probado localmente** — pendiente de verificar contra Supabase real | 28/10/2026 |
 | 3 | Alumnos: alta, ficha, búsqueda, foto, baja lógica, asignación de entrenador | **Construido y probado localmente** — pendiente de verificar contra Supabase real | 29/10/2026 |
 | 4 | Membresías y cuotas + navegación móvil + identidad M&N | **Construido, probado y desplegado en Supabase** | 27/10/2026 |
-| 5–13 | Ver plan en `01-arquitectura-etapa1.md` §7 | Pendiente | — |
+| 5 | Caja diaria, cobros y recibos internos | **Construido, probado y desplegado en Supabase** | 27/10/2026 |
+| 6–13 | Ver plan en `01-arquitectura-etapa1.md` §7 | Pendiente | — |
 
 ---
 
@@ -145,3 +146,28 @@
 - `npm run test:db` → 61/61 (14 nuevas): cálculo de períodos, alta con cuota y créditos, idempotencia, superposición, descuentos, alumno inactivo, tesorero sin escritura, renovación sin duplicar, proceso diario ×2 sin duplicar, morosidad, pausa, cancelación con anulación de cuotas futuras, visibilidad por rol.
 - `tsc`, `lint`, `build` sin errores. Sitio público revisado a 375 px.
 - Pantallas internas no revisadas en navegador por mí (requieren tu sesión).
+
+---
+
+## Incremento 5 — Caja diaria, cobros y recibos internos
+
+### Entregado
+**Base de datos** — `supabase/migrations/20261101000001_cash_payments.sql`
+- `cash_sessions` (una sola abierta por gimnasio), `cash_movements` (sólo efectivo físico), `payments`, `payment_allocations`, `receipt_sequences`.
+- `register_payment`: idempotente (clave única por formulario), bloquea las cuotas del alumno, no permite cobrar más que el saldo, asigna a las cuotas indicadas o a las más antiguas, numera el recibo `RI-000001` correlativo, y si es efectivo exige caja abierta y registra el ingreso.
+- `void_payment` (sólo admin, con motivo): devuelve saldo a las cuotas y, si era efectivo, registra la salida en la caja abierta.
+- `open_cash_session`, `register_cash_adjustment` (ingresos/salidas manuales con concepto; no deja salir más efectivo del disponible), `close_cash_session` (esperado vs contado; diferencia exige explicación; caja cerrada no admite movimientos).
+- Escritura sólo por funciones; tesorero y admin cobran; contador consulta; alumno ve sus pagos; entrenador no ve dinero.
+
+**Frontend**
+- Caja: apertura con saldo inicial, tarjetas de saldo/ingresos/salidas/esperado, movimientos, ingreso/salida manual, cierre con arqueo (cuadra / sobrante / faltante) e historial de cierres.
+- Cobrar cuota (pensado para celular): buscar alumno → elegir cuotas → importe (admite parcial) → medio de pago → recibo.
+- Recibo interno imprimible y para compartir por WhatsApp, con leyenda "no válido como factura" y sello ANULADO si corresponde.
+- Cobranzas: hoy / este mes / rango, total y desglose por medio de pago.
+- Ficha del alumno: tarjeta de pagos con recibos, botón Cobrar y anulación (admin).
+
+**Demo**: los pagos de ejemplo ahora son cobros reales (20, por transferencia/tarjeta) con recibo; `remove_demo.sql` también los borra y reinicia la numeración.
+
+### Pruebas (27/10/2026)
+- `npm run test:db` → 74/74 (13 nuevas): efectivo sin caja, una caja abierta, cobro parcial con asignación a la más antigua + recibo + movimiento, idempotencia, tope de saldo, asignación manual inválida, cuota con pagos no anulable, anulación sólo admin con reversión de saldo y caja, sin escritura directa, salida mayor al efectivo, cierre con diferencia, recibos correlativos, visibilidad por rol.
+- `check-demo.mjs`: demo idempotente y borrado sin rastros.

@@ -28,6 +28,10 @@ import { StudentDetailPage } from '@/features/students/StudentDetailPage'
 import { TrainersPage } from '@/features/trainers/TrainersPage'
 import { MyStudentsPage } from '@/features/trainers/MyStudentsPage'
 import { ChargesPage } from '@/features/memberships/ChargesPage'
+import { CashPage } from '@/features/cash/CashPage'
+import { CollectPage } from '@/features/cash/CollectPage'
+import { ReceiptPage } from '@/features/cash/ReceiptPage'
+import { PaymentsPage } from '@/features/cash/PaymentsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,7 +84,11 @@ export default function App() {
               <Route path="/admin/prospectos" element={<RequireRole roles={['admin', 'treasurer']}><LeadsPage /></RequireRole>} />
               <Route path="/admin/alumnos" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><StudentsPage /></RequireRole>} />
               <Route path="/admin/alumnos/:id" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><StudentDetailPage /></RequireRole>} />
-              <Route path="/admin/cuotas" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><ChargesPage /></RequireRole>} />
+              <Route path="/caja" element={<RequireRole roles={['admin', 'treasurer']}><CashPage /></RequireRole>} />
+              <Route path="/caja/cobrar" element={<RequireRole roles={['admin', 'treasurer']}><CollectPage /></RequireRole>} />
+              <Route path="/recibo/:id" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><ReceiptPage /></RequireRole>} />
+              <Route path="/admin/cobros" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><PaymentsPage /></RequireRole>} />
+              <Route path="/admin/cuotas"element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><ChargesPage /></RequireRole>} />
               <Route path="/admin/entrenadores"element={<RequireRole roles={['admin']}><TrainersPage /></RequireRole>} />
               <Route path="/entrenador/alumnos" element={<RequireRole roles={['trainer']}><MyStudentsPage /></RequireRole>} />
             </Route>
