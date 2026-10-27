@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 import { formatThousands } from '@/lib/format'
 
 const controlBase =
-  'w-full rounded-lg border border-border bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-graphite/30 disabled:opacity-50 aria-[invalid=true]:border-destructive'
+  'w-full rounded-lg border border-border bg-card px-3 text-base sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-graphite/30 disabled:opacity-50 aria-[invalid=true]:border-destructive'
 
 export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
   ({ className, ...props }, ref) => <select ref={ref} className={cn(controlBase, 'h-10', className)} {...props} />,

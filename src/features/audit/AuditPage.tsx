@@ -58,8 +58,8 @@ export function AuditPage() {
                   <tr>
                     <th className="px-4 py-3 font-medium">Fecha</th>
                     <th className="px-4 py-3 font-medium">Acción</th>
-                    <th className="px-4 py-3 font-medium">Detalle</th>
-                    <th className="px-4 py-3 font-medium">Motivo</th>
+                    <th className="hidden px-4 py-3 font-medium md:table-cell">Detalle</th>
+                    <th className="hidden px-4 py-3 font-medium md:table-cell">Motivo</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -67,11 +67,11 @@ export function AuditPage() {
                     <tr key={r.id}>
                       <td className="whitespace-nowrap px-4 py-3">{formatDateTime(r.created_at)}</td>
                       <td className="px-4 py-3">{ACTION_LABELS[r.action] ?? r.action}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      <td className="hidden max-w-md truncate px-4 py-3 font-mono text-xs text-muted-foreground md:table-cell">
                         {r.entity} {r.entity_id ? `· ${r.entity_id.slice(0, 8)}` : ''}{' '}
                         {r.after ? JSON.stringify(r.after) : r.before ? JSON.stringify(r.before) : ''}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{r.reason ?? '—'}</td>
+                      <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{r.reason ?? '—'}</td>
                     </tr>
                   ))}
                 </tbody>

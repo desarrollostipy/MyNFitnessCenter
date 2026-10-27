@@ -24,6 +24,7 @@ import {
 } from './api'
 import { StudentAvatar } from './StudentAvatar'
 import { StudentFormDialog } from './StudentFormDialog'
+import { StudentMembershipSection } from '@/features/memberships/StudentMembershipSection'
 
 function ageFrom(birth: string | null) {
   if (!birth) return null
@@ -130,6 +131,10 @@ export function StudentDetailPage() {
         </Card>
 
         <AssignmentsCard student={s} canEdit={isAdmin} />
+      </div>
+
+      <div className="mt-6">
+        <StudentMembershipSection student={s} />
       </div>
 
       {editing && <StudentFormDialog student={s} onClose={() => setEditing(false)} />}

@@ -94,7 +94,31 @@ export function UsersPage() {
             description={debounced ? 'Pruebe con otro nombre o email.' : 'Invite al primer usuario del equipo.'}
           />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Celular: una tarjeta por usuario con los perfiles como casillas. */}
+          <ul className="divide-y divide-border md:hidden">
+            {users.data.map((u) => (
+              <li key={u.user_id} className="px-4 py-3">
+                <p className="font-medium">{u.full_name || '—'}</p>
+                <p className="text-xs text-muted-foreground">{u.email}</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {ALL_ROLES.map((r) => (
+                    <label key={r} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="size-4 accent-graphite"
+                        checked={u.roles.includes(r)}
+                        disabled={setRole.isPending && setRole.variables?.userId === u.user_id && setRole.variables?.role === r}
+                        onChange={(e) => onToggle(u, r, e.target.checked)}
+                      />
+                      {ROLE_LABELS[r]}
+                    </label>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead className="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
@@ -141,6 +165,7 @@ export function UsersPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </Card>
 

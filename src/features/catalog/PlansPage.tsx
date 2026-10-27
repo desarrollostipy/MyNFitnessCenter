@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { errorMessage } from '@/lib/errors'
 import { formatPYG } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { CheckboxField, MoneyInput, Select, Textarea } from '@/components/ui/form-controls'
@@ -106,41 +107,27 @@ export function PlansPage() {
         ) : !plans.data?.length ? (
           <EmptyState title="Todavía no hay planes" description="Cree el primer plan de membresía." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Plan</th>
-                  <th className="px-4 py-3 font-medium">Tipo</th>
-                  <th className="px-4 py-3 font-medium">Vigencia</th>
-                  <th className="px-4 py-3 font-medium">Sesiones</th>
-                  <th className="px-4 py-3 text-right font-medium">Precio</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {plans.data.map((p) => (
-                  <tr key={p.id} className={p.is_active ? '' : 'text-muted-foreground'}>
-                    <td className="px-4 py-3 font-medium">{p.name}</td>
-                    <td className="px-4 py-3">{PLAN_TYPE_LABELS[p.plan_type]}</td>
-                    <td className="whitespace-nowrap px-4 py-3">{planDurationLabel(p)}</td>
-                    <td className="px-4 py-3">{p.included_sessions || '—'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{formatPYG(p.price)}</td>
-                    <td className="space-x-1 px-4 py-3">
-                      <Badge tone={p.is_active ? 'accent' : 'neutral'}>{p.is_active ? 'Activo' : 'Inactivo'}</Badge>
-                      {p.is_public && <Badge>Público</Badge>}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setEditing(p)} aria-label={`Editar ${p.name}`}>
-                        <Pencil /> Editar
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="divide-y divide-border">
+            {plans.data.map((p) => (
+              <li key={p.id} className={cn('flex items-center gap-3 px-4 py-3', !p.is_active && 'text-muted-foreground')}>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{p.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {PLAN_TYPE_LABELS[p.plan_type]} · {planDurationLabel(p)}
+                    {p.included_sessions ? ` · ${p.included_sessions} sesiones` : ''}
+                  </p>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <Badge tone={p.is_active ? 'accent' : 'neutral'}>{p.is_active ? 'Activo' : 'Inactivo'}</Badge>
+                    {p.is_public && <Badge>Público</Badge>}
+                  </div>
+                </div>
+                <p className="whitespace-nowrap text-right font-medium tabular-nums">{formatPYG(p.price)}</p>
+                <Button variant="ghost" size="icon" onClick={() => setEditing(p)} aria-label={`Editar ${p.name}`}>
+                  <Pencil />
+                </Button>
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
       {editing && <PlanDialog plan={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}

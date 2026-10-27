@@ -182,7 +182,7 @@ export function ContactPage() {
 
         <label className="flex items-start gap-3 text-sm">
           <input type="checkbox" className="mt-0.5 size-4 accent-graphite" {...register('consent')} />
-          <span>Autorizo a MyN Fitness a contactarme por teléfono, WhatsApp o email para responder esta solicitud.</span>
+          <span>Autorizo a M&N Fitness a contactarme por teléfono, WhatsApp o email para responder esta solicitud.</span>
         </label>
         {errors.consent && (
           <p className="text-xs text-destructive" role="alert">

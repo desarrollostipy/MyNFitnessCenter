@@ -28,7 +28,8 @@ export function Badge({
 }: React.HTMLAttributes<HTMLSpanElement> & { tone?: 'neutral' | 'accent' | 'dark' | 'danger' }) {
   const tones = {
     neutral: 'bg-muted text-muted-foreground',
-    accent: 'bg-accent text-accent-foreground',
+    // "accent" marca estados positivos (activo, pagado): verde, para no confundir con el rojo de marca.
+    accent: 'bg-success/10 text-success',
     dark: 'bg-primary text-primary-foreground',
     danger: 'bg-destructive/10 text-destructive',
   }

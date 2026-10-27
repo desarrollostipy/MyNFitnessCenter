@@ -5,7 +5,8 @@
 | 1 | Base: organización, auth, roles, auditoría, layout, usuarios | **Construido y probado localmente** — pendiente de verificar contra un proyecto Supabase real y Netlify | 27/10/2026 |
 | 2 | Configuración (planes, servicios, medios de pago) + página pública + leads | **Construido y probado localmente** — pendiente de verificar contra Supabase real | 28/10/2026 |
 | 3 | Alumnos: alta, ficha, búsqueda, foto, baja lógica, asignación de entrenador | **Construido y probado localmente** — pendiente de verificar contra Supabase real | 29/10/2026 |
-| 4–13 | Ver plan en `01-arquitectura-etapa1.md` §7 | Pendiente | — |
+| 4 | Membresías y cuotas + navegación móvil + identidad M&N | **Construido, probado y desplegado en Supabase** | 27/10/2026 |
+| 5–13 | Ver plan en `01-arquitectura-etapa1.md` §7 | Pendiente | — |
 
 ---
 
@@ -113,3 +114,34 @@
 - La conversión de prospecto actualiza el prospecto en una segunda operación; si falla, el alumno queda creado y el prospecto sin marcar (se puede marcar a mano).
 - El alumno puede ver su ficha pero no editarla todavía (portal del alumno, Incremento 11).
 - Membresías, cuotas, pagos y reservas aparecerán como pestañas de la ficha en los incrementos 4, 5 y 8.
+
+---
+
+## Despliegue (27/10/2026)
+- Supabase `okrlprsuanenpvtygqpp` (us-east-2): migraciones 1–4 + correcciones del analizador aplicadas; seed aplicado; Edge Function `admin-invite-user` activa; cron `myn-membership-daily` activo (03:05 UTC = 00:05 Asunción).
+- Primer administrador: desarrollostipy@gmail.com (auditado como `role.bootstrap_admin`).
+- Verificado con la clave anónima: sólo se leen planes publicados; gimnasio, prospectos, alumnos y RPC de usuarios → 401.
+- Advertencias restantes del analizador: funciones `security definer` ejecutables por usuarios autenticados (intencional: validan el rol adentro) y "protección de contraseñas filtradas" desactivada (se activa en Authentication → Settings).
+
+## Incremento 4 — Membresías y cuotas, navegación móvil e identidad M&N
+
+### Entregado
+**Base de datos** — `supabase/migrations/20261031000001_memberships_charges.sql`
+- `subscriptions` (copia de las condiciones del plan al contratar), `subscription_periods`, `subscription_pauses`, `session_entitlements`, `charges`.
+- Estados separados: vigencia (`subscriptions.status`), pago (`charges.status`), acceso (vista `v_student_membership_status`, con `security_invoker`).
+- RPC: `enroll_membership` (idempotente por clave), `renew_subscription`, `pause_subscription`, `cancel_subscription`, `void_charge`, `run_membership_jobs`.
+- Proceso diario `app.run_daily_membership_jobs()`: renovación automática continua hasta cubrir 7 días, membresías sin renovación pasan a vencidas, cuotas impagas a "Vencido". Idempotente.
+- Una sola cuota vigente por período (índice único parcial). Nadie escribe membresías ni cuotas directamente: sólo funciones.
+- RLS: staff ve todo; alumno lo suyo; entrenador ve las membresías de sus alumnos pero no sus cuotas.
+- Período mensual: del día de inicio al día anterior del mes siguiente. Inicios 29–31 se ajustan al fin de mes una vez y luego quedan estables.
+
+**Frontend**
+- Ficha del alumno: resumen (vigencia, vencimiento, saldo, vencido), membresías (nueva, renovar, pausar, cancelar con motivo) y cuotas (anular con motivo).
+- Pantalla Cuotas: Por cobrar, Vencidas, Morosos (deuda por alumno con llamada directa), Pagadas, Anuladas; botón "Actualizar ahora".
+- Celular: barra inferior con accesos principales + "Más", diálogos como hoja inferior, campos de 16 px (sin zoom en iPhone), listas en lugar de tablas anchas.
+- Identidad M&N: negro, rojo de marca (#E3131B) y blanco; marca tipográfica provisoria hasta recibir el archivo del logotipo.
+
+### Pruebas (27/10/2026)
+- `npm run test:db` → 61/61 (14 nuevas): cálculo de períodos, alta con cuota y créditos, idempotencia, superposición, descuentos, alumno inactivo, tesorero sin escritura, renovación sin duplicar, proceso diario ×2 sin duplicar, morosidad, pausa, cancelación con anulación de cuotas futuras, visibilidad por rol.
+- `tsc`, `lint`, `build` sin errores. Sitio público revisado a 375 px.
+- Pantallas internas no revisadas en navegador por mí (requieren tu sesión).

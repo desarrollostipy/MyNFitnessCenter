@@ -7,6 +7,7 @@ import {
   History,
   IdCard,
   Inbox,
+  ReceiptText,
   UserRound,
   Users,
   UsersRound,
@@ -18,6 +19,10 @@ export interface NavItem {
   to: string
   icon: LucideIcon
   roles: AppRole[] | 'any'
+  /** Prioridad en la barra inferior del celular (menor = antes). Sin valor: sólo en "Más". */
+  mobile?: number
+  /** Etiqueta corta para la barra inferior. */
+  short?: string
 }
 
 export interface NavSection {
@@ -30,17 +35,18 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Gestión',
     items: [
-      { label: 'Alumnos', to: '/admin/alumnos', icon: UsersRound, roles: ['admin', 'accountant', 'treasurer'] },
+      { label: 'Alumnos', to: '/admin/alumnos', icon: UsersRound, roles: ['admin', 'accountant', 'treasurer'], mobile: 1 },
+      { label: 'Cuotas', to: '/admin/cuotas', icon: ReceiptText, roles: ['admin', 'accountant', 'treasurer'], mobile: 2 },
       { label: 'Entrenadores', to: '/admin/entrenadores', icon: GraduationCap, roles: ['admin'] },
     ],
   },
   {
     title: 'Entrenador',
-    items: [{ label: 'Mis alumnos', to: '/entrenador/alumnos', icon: UsersRound, roles: ['trainer'] }],
+    items: [{ label: 'Mis alumnos', to: '/entrenador/alumnos', icon: UsersRound, roles: ['trainer'], mobile: 1, short: 'Alumnos' }],
   },
   {
     title: 'Comercial',
-    items: [{ label: 'Prospectos', to: '/admin/prospectos', icon: Inbox, roles: ['admin', 'treasurer'] }],
+    items: [{ label: 'Prospectos', to: '/admin/prospectos', icon: Inbox, roles: ['admin', 'treasurer'], mobile: 3 }],
   },
   {
     title: 'Catálogo',
@@ -60,7 +66,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'Mi cuenta',
-    items: [{ label: 'Mi perfil', to: '/cuenta', icon: UserRound, roles: 'any' }],
+    items: [{ label: 'Mi perfil', to: '/cuenta', icon: UserRound, roles: 'any', mobile: 9, short: 'Perfil' }],
   },
 ]
 
@@ -69,6 +75,15 @@ export function visibleSections(hasRole: (...r: AppRole[]) => boolean): NavSecti
     ...s,
     items: s.items.filter((i) => i.roles === 'any' || hasRole(...i.roles)),
   })).filter((s) => s.items.length > 0)
+}
+
+/** Accesos de la barra inferior en el celular (máximo 4; el resto va en "Más"). */
+export function mobileItems(hasRole: (...r: AppRole[]) => boolean): NavItem[] {
+  return visibleSections(hasRole)
+    .flatMap((s) => s.items)
+    .filter((i) => i.mobile !== undefined)
+    .sort((a, b) => a.mobile! - b.mobile!)
+    .slice(0, 4)
 }
 
 /** Primera pantalla útil según los roles del usuario. */

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { LogOut, Menu, X } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { visibleSections } from '@/app/navigation'
+import { mobileItems, visibleSections } from '@/app/navigation'
 import { Brand } from '@/components/Brand'
 import { cn } from '@/lib/utils'
 import { ROLE_LABELS } from '@/types/domain'
@@ -31,7 +31,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     className={({ isActive }) =>
                       cn(
                         'flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors',
-                        isActive ? 'bg-white/10 text-lime' : 'text-smoke/80 hover:bg-white/5 hover:text-smoke',
+                        isActive ? 'bg-white/10 text-brand' : 'text-smoke/80 hover:bg-white/5 hover:text-smoke',
                       )
                     }
                   >
@@ -86,18 +86,54 @@ export function AppShell() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center gap-3 border-b border-border bg-card px-4 lg:hidden">
-          <button onClick={() => setOpen(true)} className="rounded-md p-2 hover:bg-muted" aria-label="Abrir menú">
-            <Menu className="size-5" />
-          </button>
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-4 pt-[env(safe-area-inset-top)] lg:hidden">
           <Brand />
         </header>
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
+        <main className="flex-1 overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+          <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
             <Outlet />
           </div>
         </main>
       </div>
+
+      <BottomNav onMore={() => setOpen(true)} />
     </div>
+  )
+}
+
+/** Barra inferior en el celular: accesos principales del perfil + "Más" abre el menú completo. */
+function BottomNav({ onMore }: { onMore: () => void }) {
+  const { hasRole } = useAuth()
+  const items = mobileItems(hasRole)
+  const tab = 'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium'
+
+  return (
+    <nav
+      className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
+      aria-label="Accesos rápidos"
+    >
+      {items.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          className={({ isActive }) => cn(tab, isActive ? 'text-graphite' : 'text-muted-foreground')}
+        >
+          {({ isActive }) => (
+            <>
+              <span className={cn('rounded-full px-4 py-1', isActive && 'bg-accent text-accent-foreground')}>
+                <item.icon className="size-5" />
+              </span>
+              <span className="truncate">{item.short ?? item.label}</span>
+            </>
+          )}
+        </NavLink>
+      ))}
+      <button onClick={onMore} className={cn(tab, 'text-muted-foreground')} aria-label="Más opciones">
+        <span className="px-4 py-1">
+          <Menu className="size-5" />
+        </span>
+        Más
+      </button>
+    </nav>
   )
 }

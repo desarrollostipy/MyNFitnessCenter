@@ -11,12 +11,14 @@ export function PublicHomePage() {
     <>
       <section className="bg-graphite text-smoke">
         <div className="mx-auto max-w-6xl px-4 pb-24 pt-16 sm:px-6 sm:pt-24">
-          <p className="mb-4 text-sm font-medium uppercase tracking-widest text-lime">Asunción · Paraguay</p>
-          <h1 className="max-w-2xl text-4xl font-semibold leading-tight tracking-tight sm:text-6xl">
-            Entrená con método. Medí tu progreso.
+          <p className="mb-4 text-sm font-medium uppercase tracking-widest text-brand">Asunción · Paraguay</p>
+          <h1 className="max-w-2xl text-4xl font-black uppercase leading-none tracking-tight sm:text-7xl">
+            <span className="text-brand">Entrenar es</span> invertir <span className="text-brand">en tu salud</span>
           </h1>
+          <div className="mt-6 h-1 w-24 rounded-full bg-brand" aria-hidden />
           <p className="mt-6 max-w-xl text-lg text-smoke/70">
-            Membresías, entrenamiento personalizado y seguimiento profesional en MyN Fitness.
+            Movimiento, constancia y hábitos que marcan la diferencia. Membresías y entrenamiento personalizado en M&amp;N
+            Fitness.
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
             <Button asChild variant="accent" size="lg">

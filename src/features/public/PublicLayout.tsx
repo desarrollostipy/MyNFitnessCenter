@@ -29,7 +29,7 @@ export function PublicLayout() {
                 key={l.to}
                 to={l.to}
                 end
-                className={({ isActive }) => cn('text-sm', isActive ? 'text-lime' : 'text-smoke/75 hover:text-smoke')}
+                className={({ isActive }) => cn('text-sm', isActive ? 'text-brand' : 'text-smoke/75 hover:text-smoke')}
               >
                 {l.label}
               </NavLink>

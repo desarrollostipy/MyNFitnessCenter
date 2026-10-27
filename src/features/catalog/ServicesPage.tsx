@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { errorMessage } from '@/lib/errors'
 import { formatPYG } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { CheckboxField, MoneyInput, Textarea } from '@/components/ui/form-controls'
@@ -69,43 +70,27 @@ export function ServicesPage() {
         ) : !services.data?.length ? (
           <EmptyState title="Todavía no hay servicios" description="Cree el primer servicio para poder usarlo en planes y reservas." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Servicio</th>
-                  <th className="px-4 py-3 font-medium">Duración</th>
-                  <th className="px-4 py-3 text-right font-medium">Precio</th>
-                  <th className="px-4 py-3 font-medium">Cancelación</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {services.data.map((s) => (
-                  <tr key={s.id} className={s.is_active ? '' : 'text-muted-foreground'}>
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{s.name}</p>
-                      {s.description && <p className="line-clamp-1 text-xs text-muted-foreground">{s.description}</p>}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3">{s.duration_minutes} min</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{formatPYG(s.price)}</td>
-                    <td className="whitespace-nowrap px-4 py-3">{s.cancellation_hours} h antes</td>
-                    <td className="space-x-1 px-4 py-3">
-                      <Badge tone={s.is_active ? 'accent' : 'neutral'}>{s.is_active ? 'Activo' : 'Inactivo'}</Badge>
-                      {s.is_public && <Badge>Público</Badge>}
-                      {s.is_bookable && <Badge>Reservable</Badge>}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setEditing(s)} aria-label={`Editar ${s.name}`}>
-                        <Pencil /> Editar
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="divide-y divide-border">
+            {services.data.map((s) => (
+              <li key={s.id} className={cn('flex items-center gap-3 px-4 py-3', !s.is_active && 'text-muted-foreground')}>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{s.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {s.duration_minutes} min · cancelación {s.cancellation_hours} h antes
+                  </p>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <Badge tone={s.is_active ? 'accent' : 'neutral'}>{s.is_active ? 'Activo' : 'Inactivo'}</Badge>
+                    {s.is_public && <Badge>Público</Badge>}
+                    {s.is_bookable && <Badge>Reservable</Badge>}
+                  </div>
+                </div>
+                <p className="whitespace-nowrap text-right font-medium tabular-nums">{formatPYG(s.price)}</p>
+                <Button variant="ghost" size="icon" onClick={() => setEditing(s)} aria-label={`Editar ${s.name}`}>
+                  <Pencil />
+                </Button>
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
       {editing && <ServiceDialog service={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}

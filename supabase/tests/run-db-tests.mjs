@@ -514,6 +514,149 @@ async function mkUserRaw(email) {
   return (await db.query(`insert into auth.users (email) values ($1) returning id`, [email])).rows[0].id
 }
 
+// ---------------------------------------------------------------------
+// Incremento 4: membresías y cuotas
+// ---------------------------------------------------------------------
+console.log('\nIncremento 4')
+let monthlyPlan, packPlan, subId
+const today = (await db.query(`select app.today()::text as d`)).rows[0].d
+
+await test('período mensual termina el día anterior al mismo día del mes siguiente', async () => {
+  const r = await db.query(`select app.period_end('2026-01-31', 1, null)::text as a, app.period_end('2026-03-10', 1, null)::text as b, app.period_end('2026-03-10', null, 30)::text as c`)
+  assert(r.rows[0].a === '2026-02-27' && r.rows[0].b === '2026-04-09' && r.rows[0].c === '2026-04-08', JSON.stringify(r.rows[0]))
+})
+
+await test('admin da de alta una membresía: período, cuota y créditos en una operación', async () => {
+  await as(admin2)
+  monthlyPlan = publicPlanId
+  packPlan = hiddenPlanId
+  subId = (await db.query(`select public.enroll_membership($1, $2, $3::date, 50000, 'Promo apertura', true, '11111111-1111-1111-1111-111111111111') as id`, [studentA, monthlyPlan, today])).rows[0].id
+  await db.exec('reset role')
+  const c = await db.query(`select amount, discount, total, status from public.charges where student_id = $1`, [studentA])
+  assert(c.rows.length === 1 && Number(c.rows[0].total) === 200000 && c.rows[0].status === 'pending', JSON.stringify(c.rows))
+  const p = await db.query(`select count(*)::int as n from public.subscription_periods where subscription_id = $1`, [subId])
+  assert(p.rows[0].n === 1, 'períodos')
+})
+
+await test('doble envío con la misma clave no duplica la membresía', async () => {
+  await as(admin2)
+  const again = (await db.query(`select public.enroll_membership($1, $2, $3::date, 50000, 'Promo apertura', true, '11111111-1111-1111-1111-111111111111') as id`, [studentA, monthlyPlan, today])).rows[0].id
+  assert(again === subId, 'devolvió otra membresía')
+  await db.exec('reset role')
+  assert((await db.query(`select count(*)::int as n from public.charges`)).rows[0].n === 1, 'duplicó cuota')
+})
+
+await test('mismo plan vigente en fechas superpuestas rechazado', async () => {
+  await as(admin2)
+  await expectError(db.query(`select public.enroll_membership($1, $2, $3::date)`, [studentA, monthlyPlan, today]), 'P0001')
+})
+
+await test('descuento sin motivo o mayor al precio rechazado', async () => {
+  await as(admin2)
+  await expectError(db.query(`select public.enroll_membership($1, $2, $3::date, 1000, null)`, [studentA, packPlan, today]), 'P0001')
+  await expectError(db.query(`select public.enroll_membership($1, $2, $3::date, 99999999, 'x x x')`, [studentA, packPlan, today]), 'P0001')
+})
+
+await test('plan con sesiones genera créditos', async () => {
+  await as(admin2)
+  await db.query(`update public.membership_plans set is_active = true where id = $1`, [packPlan])
+  await db.query(`select public.enroll_membership($1, $2, $3::date)`, [studentA, packPlan, today])
+  await db.exec('reset role')
+  const e = await db.query(`select granted, used from public.session_entitlements`)
+  assert(e.rows.length === 1 && e.rows[0].granted === 8 && e.rows[0].used === 0, JSON.stringify(e.rows))
+})
+
+await test('alumno dado de baja no puede recibir membresía', async () => {
+  await as(admin2)
+  await expectError(db.query(`select public.enroll_membership($1, $2, $3::date)`, [studentB, monthlyPlan, today]), 'P0001')
+})
+
+await test('tesorero no puede dar de alta ni escribir cuotas directamente', async () => {
+  await as(treasurer)
+  await expectError(db.query(`select public.enroll_membership($1, $2, $3::date)`, [studentA, monthlyPlan, today]), '42501')
+  await expectError(db.query(`update public.charges set paid_amount = 200000`), '42501')
+  await expectError(db.query(`insert into public.charges (gym_id, student_id, source, concept, amount, due_on) values ($1, $2, 'other', 'x', 1, $3::date)`, [GYM, studentA, today]), '42501')
+  assert((await db.query(`select id from public.charges`)).rows.length === 2, 'tesorero no ve cuotas')
+})
+
+await test('renovación manual genera el período siguiente; repetir no duplica', async () => {
+  await as(admin2)
+  await db.query(`select public.renew_subscription($1)`, [subId])
+  await db.exec('reset role')
+  const p = await db.query(`select sequence, period_start::text, period_end::text from public.subscription_periods where subscription_id = $1 order by sequence`, [subId])
+  assert(p.rows.length === 2, `períodos: ${p.rows.length}`)
+  const exp = (await db.query(`select ($1::date + 1)::text as d`, [p.rows[0].period_end])).rows[0].d
+  assert(p.rows[1].period_start === exp, 'el segundo período no empieza al día siguiente')
+  const c = await db.query(`select count(*)::int as n from public.charges where subscription_period_id is not null and status <> 'voided' and student_id = $1`, [studentA])
+  assert(c.rows[0].n === 3, `cuotas: ${c.rows[0].n}`)
+})
+
+await test('proceso diario dos veces seguidas no duplica cuotas', async () => {
+  // Membresía que vence pronto con renovación automática.
+  await as(admin2)
+  const plan15 = (
+    await db.query(`insert into public.membership_plans (gym_id, name, plan_type, price, duration_days) values ($1, 'Quincenal', 'custom', 100000, 15) returning id`, [GYM])
+  ).rows[0].id
+  const sid = (await db.query(`select public.enroll_membership($1, $2, ($3::date - 25), 0, null, true) as id`, [studentA, plan15, today])).rows[0].id
+  await db.exec('reset role')
+  const r1 = (await db.query(`select app.run_daily_membership_jobs() as r`)).rows[0].r
+  const n1 = (await db.query(`select count(*)::int as n from public.subscription_periods where subscription_id = $1`, [sid])).rows[0].n
+  const r2 = (await db.query(`select app.run_daily_membership_jobs() as r`)).rows[0].r
+  const n2 = (await db.query(`select count(*)::int as n from public.subscription_periods where subscription_id = $1`, [sid])).rows[0].n
+  const ends = (await db.query(`select (ends_on - app.today()) as d from public.subscriptions where id = $1`, [sid])).rows[0].d
+  // Desde hace 25 días, con períodos de 15: hacen falta 3 períodos para cubrir hoy + 7.
+  assert(n1 === 3 && n2 === 3, `períodos ${n1} → ${n2}`)
+  assert(ends > 7, `cobertura insuficiente: vence en ${ends} días`)
+  assert(r1.renewed === 2 && r2.renewed === 0, JSON.stringify({ r1, r2 }))
+})
+
+await test('cuotas vencidas pasan a morosas', async () => {
+  await db.exec('reset role')
+  const r = await db.query(`select count(*)::int as n from public.charges where status = 'overdue'`)
+  assert(r.rows[0].n >= 1, 'no marcó vencidas')
+  await as(treasurer)
+  const v = await db.query(`select overdue_amount from public.v_student_membership_status where student_id = $1`, [studentA])
+  assert(Number(v.rows[0].overdue_amount) > 0, 'vista sin deuda vencida')
+})
+
+await test('pausa corre el vencimiento', async () => {
+  await as(admin2)
+  await db.exec('reset role')
+  const before = (await db.query(`select ends_on::text from public.subscriptions where id = $1`, [subId])).rows[0].ends_on
+  await as(admin2)
+  await db.query(`select public.pause_subscription($1, $2::date, ($2::date + 9), 'Viaje')`, [subId, today])
+  await db.exec('reset role')
+  const after = (await db.query(`select (ends_on - $2::date) as diff from public.subscriptions where id = $1`, [subId, before])).rows[0].diff
+  assert(after === 10, `diferencia ${after}`)
+  await as(admin2)
+  await expectError(db.query(`select public.pause_subscription($1, $2::date, ($2::date + 2), 'Otra')`, [subId, today]), 'P0001')
+})
+
+await test('cancelación anula cuotas futuras impagas y conserva historial', async () => {
+  await as(admin2)
+  await db.query(`select public.cancel_subscription($1, 'Se muda de ciudad', true)`, [subId])
+  await db.exec('reset role')
+  const s = (await db.query(`select status, auto_renew from public.subscriptions where id = $1`, [subId])).rows[0]
+  assert(s.status === 'cancelled' && !s.auto_renew, 'no canceló')
+  const voided = (await db.query(`select count(*)::int as n from public.charges c join public.subscription_periods p on p.id = c.subscription_period_id where p.subscription_id = $1 and c.status = 'voided'`, [subId])).rows[0].n
+  const kept = (await db.query(`select count(*)::int as n from public.charges c join public.subscription_periods p on p.id = c.subscription_period_id where p.subscription_id = $1 and c.status <> 'voided'`, [subId])).rows[0].n
+  assert(voided === 1 && kept === 1, `anuladas ${voided}, vigentes ${kept}`)
+  await as(admin2)
+  await expectError(db.query(`select public.renew_subscription($1)`, [subId]), 'P0001')
+})
+
+await test('anular cuota exige motivo; entrenador no ve cuotas; alumno ve las suyas', async () => {
+  await as(admin2)
+  const cid = (await db.query(`select id from public.charges where status <> 'voided' limit 1`)).rows[0].id
+  await expectError(db.query(`select public.void_charge($1, '')`, [cid]), 'P0001')
+  await as(trainerUser)
+  assert((await db.query(`select id from public.charges`)).rows.length === 0, 'entrenador ve cuotas')
+  assert((await db.query(`select id from public.subscriptions`)).rows.length > 0, 'entrenador no ve membresías de su alumno')
+  await as(studentUser)
+  const mine = await db.query(`select distinct student_id from public.charges`)
+  assert(mine.rows.length === 1 && mine.rows[0].student_id === studentA, 'alumno ve cuotas ajenas o ninguna')
+})
+
 console.log('\nPrivilegios')
 
 await test('nadie borra físicamente alumnos, planes ni asignaciones', async () => {

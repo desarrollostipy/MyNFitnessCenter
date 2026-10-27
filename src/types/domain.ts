@@ -188,7 +188,69 @@ export interface TrainerAssignment {
   trainers: Pick<Trainer, 'first_name' | 'last_name' | 'is_active'> | null
 }
 
-export const fullName = (p: { first_name: string; last_name: string }) => `${p.first_name} ${p.last_name}`
+export type SubscriptionStatus = 'active' | 'cancelled' | 'expired'
+export type ChargeStatus = 'pending' | 'partial' | 'paid' | 'overdue' | 'voided'
+
+export const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, string> = {
+  active: 'Vigente',
+  cancelled: 'Cancelada',
+  expired: 'Vencida',
+}
+
+export const CHARGE_STATUS_LABELS: Record<ChargeStatus, string> = {
+  pending: 'Pendiente',
+  partial: 'Parcial',
+  paid: 'Pagado',
+  overdue: 'Vencido',
+  voided: 'Anulado',
+}
+
+export interface Subscription {
+  id: string
+  student_id: string
+  plan_id: string
+  plan_name: string
+  duration_months: number | null
+  duration_days: number | null
+  included_sessions: number
+  price_agreed: number
+  discount_amount: number
+  discount_reason: string | null
+  status: SubscriptionStatus
+  auto_renew: boolean
+  starts_on: string
+  ends_on: string
+  cancelled_at: string | null
+  cancel_reason: string | null
+  subscription_pauses: { from_date: string; to_date: string; reason: string }[]
+}
+
+export interface Charge {
+  id: string
+  student_id: string
+  source: 'membership' | 'booking' | 'sale' | 'other'
+  concept: string
+  amount: number
+  discount: number
+  total: number
+  paid_amount: number
+  due_on: string
+  status: ChargeStatus
+  void_reason: string | null
+  students?: { first_name: string; last_name: string; document_number: string } | null
+}
+
+export interface MembershipStatusRow {
+  student_id: string
+  active_until: string | null
+  active_subscriptions: number
+  paused_today: boolean
+  overdue_amount: number
+  open_amount: number
+  oldest_overdue_on: string | null
+}
+
+export const fullName =(p: { first_name: string; last_name: string }) => `${p.first_name} ${p.last_name}`
 
 export interface AuditLog {
   id: number
