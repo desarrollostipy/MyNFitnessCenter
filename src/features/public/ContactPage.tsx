@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { Link, useSearchParams } from 'react-router-dom'
 import { CircleCheck } from 'lucide-react'
 import { errorMessage } from '@/lib/errors'
+import { todayISO } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
@@ -22,12 +23,6 @@ const INTEREST_HELP: Record<LeadInterest, string> = {
   info: 'Consultas generales sobre planes, horarios y servicios.',
   enrollment: 'Queremos conocerte para preparar tu inscripción.',
   trial_class: 'Coordinamos una clase de prueba con un profesor.',
-}
-
-/** Fecha local de Asunción en formato AAAA-MM-DD. */
-function todayAsuncion(offsetDays = 0) {
-  const d = new Date(Date.now() + offsetDays * 86_400_000)
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Asuncion' }).format(d)
 }
 
 const schema = z
@@ -170,7 +165,7 @@ export function ContactPage() {
               </Select>
             </Field>
             <Field label="Fecha preferida" htmlFor="c-date" hint="Sujeta a disponibilidad.">
-              <Input id="c-date" type="date" min={todayAsuncion()} max={todayAsuncion(90)} {...register('preferred_date')} />
+              <Input id="c-date" type="date" min={todayISO()} max={todayISO(90)} {...register('preferred_date')} />
             </Field>
           </div>
         )}

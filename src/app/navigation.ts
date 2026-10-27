@@ -1,5 +1,16 @@
 import type { LucideIcon } from 'lucide-react'
-import { Building2, CreditCard, Dumbbell, History, IdCard, Inbox, UserRound, Users } from 'lucide-react'
+import {
+  Building2,
+  CreditCard,
+  Dumbbell,
+  GraduationCap,
+  History,
+  IdCard,
+  Inbox,
+  UserRound,
+  Users,
+  UsersRound,
+} from 'lucide-react'
 import type { AppRole } from '@/types/domain'
 
 export interface NavItem {
@@ -16,6 +27,17 @@ export interface NavSection {
 
 // Sólo se listan módulos IMPLEMENTADOS. Cada incremento agrega sus entradas aquí.
 export const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'Gestión',
+    items: [
+      { label: 'Alumnos', to: '/admin/alumnos', icon: UsersRound, roles: ['admin', 'accountant', 'treasurer'] },
+      { label: 'Entrenadores', to: '/admin/entrenadores', icon: GraduationCap, roles: ['admin'] },
+    ],
+  },
+  {
+    title: 'Entrenador',
+    items: [{ label: 'Mis alumnos', to: '/entrenador/alumnos', icon: UsersRound, roles: ['trainer'] }],
+  },
   {
     title: 'Comercial',
     items: [{ label: 'Prospectos', to: '/admin/prospectos', icon: Inbox, roles: ['admin', 'treasurer'] }],
@@ -51,8 +73,7 @@ export function visibleSections(hasRole: (...r: AppRole[]) => boolean): NavSecti
 
 /** Primera pantalla útil según los roles del usuario. */
 export function homePathFor(hasRole: (...r: AppRole[]) => boolean): string {
-  if (hasRole('admin')) return '/admin/prospectos'
-  if (hasRole('treasurer')) return '/admin/prospectos'
-  if (hasRole('accountant')) return '/admin/auditoria'
+  if (hasRole('admin', 'treasurer', 'accountant')) return '/admin/alumnos'
+  if (hasRole('trainer')) return '/entrenador/alumnos'
   return '/cuenta'
 }

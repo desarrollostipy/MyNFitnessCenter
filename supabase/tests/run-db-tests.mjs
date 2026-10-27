@@ -26,6 +26,20 @@ const SUPABASE_STUB = `
   $$;
   grant usage on schema auth to anon, authenticated;
   grant execute on function auth.uid() to anon, authenticated;
+  create schema storage;
+  create table storage.buckets (
+    id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]
+  );
+  create table storage.objects (
+    id uuid primary key default gen_random_uuid(), bucket_id text, name text, owner uuid
+  );
+  alter table storage.objects enable row level security;
+  create function storage.foldername(name text) returns text[] language sql immutable as $$
+    select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1]
+  $$;
+  grant usage on schema storage to anon, authenticated;
+  grant all on storage.objects to authenticated;
+  grant execute on function storage.foldername(text) to anon, authenticated;
   grant usage on schema public to anon, authenticated;
   alter default privileges in schema public grant all on tables to anon, authenticated;
   alter default privileges in schema public grant all on sequences to anon, authenticated;
@@ -352,6 +366,148 @@ await test('tesorero ve y gestiona prospectos; usuario sin rol no', async () => 
   const noRole = await mkUserRaw('sinrol@myn.test')
   await as(noRole)
   assert((await db.query(`select * from public.leads`)).rows.length === 0, 'usuario sin rol ve leads')
+})
+
+// ---------------------------------------------------------------------
+// Incremento 3: alumnos, entrenadores y asignaciones
+// ---------------------------------------------------------------------
+console.log('\nIncremento 3')
+const trainerUser = await mkUserRaw('profe@myn.test')
+const trainerUser2 = await mkUserRaw('profe2@myn.test')
+const studentUser = await mkUserRaw('alumno@myn.test')
+await db.query(
+  `insert into public.user_gym_roles (user_id, gym_id, role) values ($1, $4, 'trainer'), ($2, $4, 'trainer'), ($3, $4, 'student')`,
+  [trainerUser, trainerUser2, studentUser, GYM],
+)
+let trainerId, trainer2Id, studentA, studentB
+
+await test('admin crea entrenadores', async () => {
+  await as(admin2)
+  trainerId = (
+    await db.query(`insert into public.trainers (gym_id, user_id, first_name, last_name) values ($1, $2, 'Pedro', 'Benítez') returning id`, [GYM, trainerUser])
+  ).rows[0].id
+  trainer2Id = (
+    await db.query(`insert into public.trainers (gym_id, user_id, first_name, last_name) values ($1, $2, 'Laura', 'Sosa') returning id`, [GYM, trainerUser2])
+  ).rows[0].id
+})
+
+await test('admin crea alumnos; el documento se normaliza', async () => {
+  await as(admin2)
+  const a = await db.query(
+    `insert into public.students (gym_id, first_name, last_name, document_number, email, user_id)
+     values ($1, ' María ', 'López', '4.512.333', 'MARIA@Mail.com', $2) returning id, document_number, email, first_name`,
+    [GYM, studentUser],
+  )
+  studentA = a.rows[0].id
+  assert(a.rows[0].document_number === '4512333', `doc: ${a.rows[0].document_number}`)
+  assert(a.rows[0].email === 'maria@mail.com' && a.rows[0].first_name === 'María', 'no normalizó')
+  studentB = (
+    await db.query(`insert into public.students (gym_id, first_name, last_name, document_number) values ($1, 'Juan', 'Pérez', '3200111') returning id`, [GYM])
+  ).rows[0].id
+})
+
+await test('documento duplicado (con otro formato) rechazado', async () => {
+  await as(admin2)
+  await expectError(
+    db.query(`insert into public.students (gym_id, first_name, last_name, document_number) values ($1, 'Otra', 'Persona', '4512 333')`, [GYM]),
+    '23505',
+  )
+})
+
+await test('tesorero ve alumnos pero no los crea ni modifica', async () => {
+  await as(treasurer)
+  assert((await db.query(`select id from public.students`)).rows.length === 2, 'no ve alumnos')
+  await expectError(
+    db.query(`insert into public.students (gym_id, first_name, last_name, document_number) values ($1, 'X', 'Y', '999999')`, [GYM]),
+  )
+  const u = await db.query(`update public.students set phone = '1' where id = $1`, [studentB])
+  assert(u.affectedRows === 0, 'modificó')
+})
+
+await test('entrenador sin asignaciones no ve alumnos', async () => {
+  await as(trainerUser)
+  assert((await db.query(`select id from public.students`)).rows.length === 0, 've alumnos sin asignación')
+})
+
+await test('admin asigna alumno; el entrenador ve sólo ese alumno', async () => {
+  await as(admin2)
+  await db.query(`insert into public.trainer_student_assignments (gym_id, trainer_id, student_id) values ($1, $2, $3)`, [GYM, trainerId, studentA])
+  await as(trainerUser)
+  const r = await db.query(`select id from public.students`)
+  assert(r.rows.length === 1 && r.rows[0].id === studentA, `vio ${r.rows.length}`)
+  await as(trainerUser2)
+  assert((await db.query(`select id from public.students`)).rows.length === 0, 'otro entrenador ve el alumno')
+})
+
+await test('asignación activa duplicada rechazada', async () => {
+  await as(admin2)
+  await expectError(
+    db.query(`insert into public.trainer_student_assignments (gym_id, trainer_id, student_id) values ($1, $2, $3)`, [GYM, trainerId, studentA]),
+    '23505',
+  )
+})
+
+await test('entrenador no puede autoasignarse alumnos', async () => {
+  await as(trainerUser)
+  await expectError(
+    db.query(`insert into public.trainer_student_assignments (gym_id, trainer_id, student_id) values ($1, $2, $3)`, [GYM, trainerId, studentB]),
+  )
+})
+
+await test('al cerrar la asignación el entrenador deja de ver al alumno', async () => {
+  await as(admin2)
+  await db.query(`update public.trainer_student_assignments set ends_on = app.today() where student_id = $1`, [studentA])
+  await as(trainerUser)
+  assert((await db.query(`select id from public.students`)).rows.length === 0, 'sigue viendo')
+  await as(admin2)
+  await db.query(`insert into public.trainer_student_assignments (gym_id, trainer_id, student_id) values ($1, $2, $3)`, [GYM, trainerId, studentA])
+})
+
+await test('entrenador desactivado deja de ver a sus alumnos', async () => {
+  await as(admin2)
+  await db.query(`update public.trainers set is_active = false where id = $1`, [trainerId])
+  await as(trainerUser)
+  assert((await db.query(`select id from public.students`)).rows.length === 0, 'sigue viendo')
+  await as(admin2)
+  await db.query(`update public.trainers set is_active = true where id = $1`, [trainerId])
+})
+
+await test('alumno ve sólo su propia ficha', async () => {
+  await as(studentUser)
+  const r = await db.query(`select id from public.students`)
+  assert(r.rows.length === 1 && r.rows[0].id === studentA, `vio ${r.rows.length}`)
+  const u = await db.query(`update public.students set notes = 'x' where id = $1`, [studentA])
+  assert(u.affectedRows === 0, 'el alumno editó su ficha')
+})
+
+await test('baja lógica registra fecha y auditoría', async () => {
+  await as(admin2)
+  await db.query(`update public.students set status = 'inactive', status_reason = 'Mudanza' where id = $1`, [studentB])
+  await db.exec('reset role')
+  const r = await db.query(`select status_changed_at from public.students where id = $1`, [studentB])
+  assert(r.rows[0].status_changed_at, 'sin fecha de cambio')
+  const a = await db.query(`select count(*)::int as n from public.audit_logs where entity = 'students' and entity_id = $1`, [studentB])
+  assert(a.rows[0].n === 2, `auditoría: ${a.rows[0].n}`)
+})
+
+await test('fotos: admin sube; entrenador asignado lee; otro entrenador no', async () => {
+  const path = `${GYM}/${studentA}/foto.jpg`
+  await as(admin2)
+  await db.query(`insert into storage.objects (bucket_id, name) values ('student-photos', $1)`, [path])
+  await as(trainerUser)
+  assert((await db.query(`select id from storage.objects`)).rows.length === 1, 'entrenador asignado no ve la foto')
+  await expectError(db.query(`insert into storage.objects (bucket_id, name) values ('student-photos', $1)`, [`${GYM}/${studentA}/otra.jpg`]))
+  await as(trainerUser2)
+  assert((await db.query(`select id from storage.objects`)).rows.length === 0, 'otro entrenador ve la foto')
+  await as(null)
+  await expectError(db.query(`select id from storage.objects`))
+})
+
+await test('foto en carpeta de otro gimnasio rechazada', async () => {
+  await as(admin2)
+  await expectError(
+    db.query(`insert into storage.objects (bucket_id, name) values ('student-photos', $1)`, [`00000000-0000-0000-0000-00000000dead/${studentA}/x.jpg`]),
+  )
 })
 
 async function mkUserRaw(email) {

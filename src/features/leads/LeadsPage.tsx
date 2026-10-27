@@ -3,7 +3,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, Phone, Search } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Mail, Phone, Search, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { errorMessage } from '@/lib/errors'
@@ -167,7 +168,8 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 function LeadDialog({ lead, onClose }: { lead: Lead; onClose: () => void }) {
-  const { gymId, session } = useAuth()
+  const { gymId, session, hasRole } = useAuth()
+  const isAdmin = hasRole('admin')
   const qc = useQueryClient()
   const { register, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -230,6 +232,18 @@ function LeadDialog({ lead, onClose }: { lead: Lead; onClose: () => void }) {
           )}
         </dl>
         <div className="flex flex-wrap gap-2">
+          {isAdmin && !lead.student_id && (
+            <Button asChild size="sm">
+              <Link to={`/admin/alumnos?nuevo=1&lead=${lead.id}`}>
+                <UserPlus /> Convertir en alumno
+              </Link>
+            </Button>
+          )}
+          {lead.student_id && (
+            <Button asChild size="sm" variant="outline">
+              <Link to={`/admin/alumnos/${lead.student_id}`}>Ver ficha del alumno</Link>
+            </Button>
+          )}
           {lead.phone && (
             <Button asChild variant="outline" size="sm">
               <a href={`https://wa.me/${waPhone}`} target="_blank" rel="noreferrer">

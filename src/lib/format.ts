@@ -17,6 +17,13 @@ export function formatPYG(amount: number | bigint | null | undefined): string {
   return `G. ${formatThousands(amount)}`
 }
 
+const isoDateFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TZ })
+
+/** Fecha de negocio de Asunción en formato AAAA-MM-DD (hoy, o desplazada en días). */
+export function todayISO(offsetDays = 0): string {
+  return isoDateFmt.format(new Date(Date.now() + offsetDays * 86_400_000))
+}
+
 const dateFmt = new Intl.DateTimeFormat('es-PY', {
   timeZone: TZ,
   day: '2-digit',

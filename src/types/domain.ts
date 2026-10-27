@@ -130,10 +130,65 @@ export interface Lead {
   status: LeadStatus
   internal_notes: string | null
   contacted_at: string | null
+  student_id: string | null
   created_at: string
   membership_plans: { name: string } | null
   services: { name: string } | null
 }
+
+export type StudentStatus = 'active' | 'inactive'
+
+export const STUDENT_STATUS_LABELS: Record<StudentStatus, string> = {
+  active: 'Activo',
+  inactive: 'Inactivo',
+}
+
+export interface Student {
+  id: string
+  gym_id: string
+  user_id: string | null
+  first_name: string
+  last_name: string
+  document_number: string
+  birth_date: string | null
+  phone: string | null
+  email: string | null
+  address: string | null
+  enrolled_on: string
+  status: StudentStatus
+  status_reason: string | null
+  status_changed_at: string | null
+  photo_path: string | null
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
+  notes: string | null
+  lead_id: string | null
+  created_at: string
+}
+
+export interface Trainer {
+  id: string
+  gym_id: string
+  user_id: string | null
+  first_name: string
+  last_name: string
+  document_number: string | null
+  phone: string | null
+  email: string | null
+  specialties: string | null
+  is_active: boolean
+}
+
+export interface TrainerAssignment {
+  id: string
+  trainer_id: string
+  student_id: string
+  starts_on: string
+  ends_on: string | null
+  trainers: Pick<Trainer, 'first_name' | 'last_name' | 'is_active'> | null
+}
+
+export const fullName = (p: { first_name: string; last_name: string }) => `${p.first_name} ${p.last_name}`
 
 export interface AuditLog {
   id: number
