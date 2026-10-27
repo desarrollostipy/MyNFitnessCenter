@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/* Identidad MyN Fitness: grafito, blanco humo, verde lima (acento con moderación), gris neutro. */
+@theme {
+  --color-graphite: #111827;
+  --color-smoke: #f8fafc;
+  --color-lime: #c8ff4d;
+  --color-lime-dark: #a3d92e;
+  --color-neutral: #64748b;
+
+  --color-background: #f8fafc;
+  --color-foreground: #111827;
+  --color-card: #ffffff;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-border: #e2e8f0;
+  --color-primary: #111827;
+  --color-primary-foreground: #f8fafc;
+  --color-accent: #c8ff4d;
+  --color-accent-foreground: #111827;
+  --color-destructive: #dc2626;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius-lg: 0.75rem;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
