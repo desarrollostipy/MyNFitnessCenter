@@ -223,3 +223,9 @@
 
 ### Molinete
 - Pendiente de datos del equipo (marca y modelo exactos, forma de identificación, conexión a red/internet, software actual) para definir la integración.
+
+## Molinete — vista previa (28/10/2026)
+- Integración con el molinete ZKTeco TS2000 pasa a la **Etapa 2** (pedido del gimnasio).
+- Datos relevados: lector por huella (se evalúa sumar tags con la marca M&N), conectado por cable o wifi, hoy se habilita por CI desde una app (nombre a confirmar). Falta: modelo exacto del lector y regla de días de gracia.
+- Excepción acordada con el gimnasio a la regla "no mostrar módulos no implementados": `/admin/molinete` (sólo admin) es una **vista previa** rotulada como tal, con controles deshabilitados y filas marcadas "Ejemplo". No consulta ni escribe datos.
+- Preparado en la base: `check_ins.source = 'device'` para los ingresos que lleguen del equipo.

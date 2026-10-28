@@ -37,6 +37,7 @@ import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { MyHomePage, MyMembershipPage, MyPaymentsPage } from '@/features/portal/PortalPages'
 import { CheckInPage } from '@/features/reception/CheckInPage'
 import { QuickSalePage } from '@/features/reception/QuickSalePage'
+import { TurnstilePreviewPage } from '@/features/turnstile/TurnstilePreviewPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -92,6 +93,7 @@ export default function App() {
               <Route path="/caja" element={<RequireRole roles={['admin', 'treasurer']}><CashPage /></RequireRole>} />
               <Route path="/caja/cobrar" element={<RequireRole roles={['admin', 'treasurer']}><CollectPage /></RequireRole>} />
               <Route path="/caja/venta-rapida" element={<RequireRole roles={['admin', 'treasurer']}><QuickSalePage /></RequireRole>} />
+              <Route path="/admin/molinete" element={<RequireRole roles={['admin']}><TurnstilePreviewPage /></RequireRole>} />
               <Route path="/ingreso" element={<RequireRole roles={['admin', 'treasurer']}><CheckInPage /></RequireRole>} />
               <Route path="/recibo/:id" element={<RequireRole roles={['admin', 'accountant', 'treasurer', 'student']}><ReceiptPage /></RequireRole>} />
               <Route path="/mi" element={<RequireRole roles={['student']}><MyHomePage /></RequireRole>} />

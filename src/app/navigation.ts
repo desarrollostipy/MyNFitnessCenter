@@ -17,6 +17,7 @@ import {
   IdCard,
   Inbox,
   ReceiptText,
+  Router,
   UserRound,
   Users,
   UsersRound,
@@ -50,6 +51,8 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Control de ingreso', to: '/ingreso', icon: DoorOpen, roles: ['admin', 'treasurer'], mobile: 0, short: 'Ingreso' },
       { label: 'Venta rápida', to: '/caja/venta-rapida', icon: ShoppingBag, roles: ['admin', 'treasurer'], mobile: 0.2, short: 'Vender' },
+      // Vista previa (próxima etapa): la pantalla lo indica y no tiene controles activos.
+      { label: 'Molinete (vista previa)', to: '/admin/molinete', icon: Router, roles: ['admin'] },
     ],
   },
   {
