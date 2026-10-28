@@ -236,3 +236,14 @@
 - Menú lateral flotante de vidrio; en el celular, barra inferior flotante tipo cápsula.
 - Sin desenfoque (equipos sin soporte o "reducir transparencia"): paneles sólidos.
 - Recibos: clase `paper` (siempre blanco en pantalla e impresión).
+
+## Usuarios por CI con PIN (28/10/2026)
+- Pedido del gimnasio: crear las cuentas desde Usuarios con el número de CI (sin email) y entregar un PIN.
+- Edge Function `admin-invite-user` (sólo admin):
+  - `create_ci`: crea la cuenta con un email técnico `<ci>@ci.example.com` (dominio reservado RFC 2606, nunca recibe correo, así nadie puede pedir un enlace de recuperación hacia esa dirección) y un PIN temporal de 8 caracteres con letras y números, sin caracteres ambiguos. Marca `must_change_password`. Si falla la asignación de perfil, borra la cuenta recién creada.
+  - `reset_pin`: PIN nuevo para un usuario del gimnasio (no para la propia cuenta). Auditado (`user.pin_reset`).
+  - `invite`: la invitación por email sigue disponible como opción secundaria.
+- Ingreso: campo "CI o email". Con PIN temporal, el sistema obliga a crear una clave propia (`/crear-clave`) antes de entrar.
+- Ficha del alumno: "Dar acceso al portal" crea la cuenta con su CI y muestra el PIN.
+- Listas desplegables: fondo oscuro sólido (en el tema glass se veían en blanco).
+- Pendiente de verificar con un alta real en producción: no se crearon cuentas de prueba en la base real.

@@ -12,6 +12,8 @@ interface AuthContextValue {
   roles: AppRole[]
   gymId: string
   hasRole: (...roles: AppRole[]) => boolean
+  /** Cuenta con PIN temporal (alta por CI o PIN regenerado): debe crear su propia clave. */
+  mustChangePassword: boolean
   signOut: () => Promise<void>
 }
 
@@ -74,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       roles,
       gymId: GYM_ID,
       hasRole: (...wanted) => wanted.some((r) => roles.includes(r)),
+      mustChangePassword: session?.user.user_metadata?.must_change_password === true,
       signOut: async () => {
         await supabase.auth.signOut()
         queryClient.clear()

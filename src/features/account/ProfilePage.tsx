@@ -13,6 +13,7 @@ import { Field, Input } from '@/components/ui/input'
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageHeader } from '@/components/states'
 import { ROLE_LABELS } from '@/types/domain'
+import { accountLabel } from '@/lib/ciAuth'
 
 const profileSchema = z.object({
   full_name: z.string().trim().min(2, 'Ingrese su nombre').max(120),
@@ -67,7 +68,7 @@ export function ProfilePage() {
 
   return (
     <>
-      <PageHeader title="Mi perfil" description={session?.user.email} />
+      <PageHeader title="Mi perfil" description={accountLabel(session?.user.email)} />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>

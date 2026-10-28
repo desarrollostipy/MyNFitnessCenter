@@ -40,6 +40,9 @@ export function ForgotPasswordPage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <p className="rounded-xl bg-muted p-3 text-sm text-muted-foreground">
+            ¿Ingresás con tu número de CI? Pedí en recepción un PIN nuevo. Este enlace es sólo para cuentas con email.
+          </p>
           <Field label="Email" htmlFor="email" error={formState.errors.email?.message}>
             <Input id="email" type="email" autoComplete="email" {...register('email')} />
           </Field>

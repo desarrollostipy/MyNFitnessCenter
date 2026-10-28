@@ -6,7 +6,8 @@ import { errorMessage } from '@/lib/errors'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useTrainers } from '@/features/trainers/api'
-import { useInviteUser } from '@/features/users/api'
+import { useCreateUser } from '@/features/users/api'
+import { PinDialog, type PinInfo } from '@/features/users/PinDialog'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/input'
 import { Select, Textarea } from '@/components/ui/form-controls'
@@ -144,13 +145,12 @@ export function StudentDetailPage() {
   )
 }
 
-/** Invita al alumno por email a "Mi M&N" y vincula su cuenta con esta ficha. */
+/** Crea la cuenta de "Mi M&N" con la CI del alumno y un PIN temporal, y la vincula con esta ficha. */
 function PortalAccessButton({ student }: { student: Student }) {
   const { gymId } = useAuth()
-  const invite = useInviteUser(gymId)
+  const create = useCreateUser(gymId)
   const [open, setOpen] = useState(false)
-
-  if (!student.email) return <span className="text-muted-foreground">Sin cuenta — cargue un email para invitarlo</span>
+  const [pinInfo, setPinInfo] = useState<PinInfo | null>(null)
 
   return (
     <>
@@ -161,16 +161,17 @@ function PortalAccessButton({ student }: { student: Student }) {
         open={open}
         onOpenChange={setOpen}
         title="Dar acceso a Mi M&N"
-        description={`Se enviará una invitación a ${student.email} para crear su contraseña. Podrá ver su membresía, cuotas y recibos desde el celular.`}
-        confirmLabel="Enviar invitación"
-        loading={invite.isPending}
+        description={`Se crea su cuenta con la CI ${student.document_number} y un PIN para entregarle. Podrá ver su membresía, cuotas y recibos desde el celular.`}
+        confirmLabel="Crear acceso"
+        loading={create.isPending}
         onConfirm={() =>
-          invite.mutate(
-            { email: student.email!, full_name: fullName(student), role: 'student', student_id: student.id },
+          create.mutate(
+            { document: student.document_number, full_name: fullName(student), role: 'student', student_id: student.id },
             {
               onSuccess: (r) => {
-                toast.success(r.already_existed ? 'La cuenta ya existía: quedó vinculada a la ficha.' : `Invitación enviada a ${student.email}.`)
                 setOpen(false)
+                if (r.pin) setPinInfo({ name: fullName(student), account: `CI ${student.document_number}`, pin: r.pin })
+                else toast.success('La cuenta ya existía: quedó vinculada a la ficha. Si no recuerda su clave, genere un PIN nuevo en Usuarios.')
               },
               onError: (e) => {
                 toast.error(errorMessage(e))
@@ -180,6 +181,7 @@ function PortalAccessButton({ student }: { student: Student }) {
           )
         }
       />
+      <PinDialog info={pinInfo} onClose={() => setPinInfo(null)} />
     </>
   )
 }

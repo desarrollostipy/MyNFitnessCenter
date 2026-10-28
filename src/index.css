@@ -49,6 +49,13 @@ html {
   color-scheme: dark;
 }
 
+/* La lista desplegable nativa no hereda el vidrio: fondo sólido oscuro y texto claro. */
+select option,
+select optgroup {
+  background-color: #161618;
+  color: #f5f5f6;
+}
+
 html,
 body,
 #root {

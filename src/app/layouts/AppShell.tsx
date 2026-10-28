@@ -6,6 +6,7 @@ import { mobileItems, visibleSections } from '@/app/navigation'
 import { Brand } from '@/components/Brand'
 import { cn } from '@/lib/utils'
 import { ROLE_LABELS } from '@/types/domain'
+import { accountLabel } from '@/lib/ciAuth'
 
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { hasRole, profile, session, roles, signOut } = useAuth()
@@ -45,7 +46,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
       <div className="border-t border-white/10 p-4">
-        <p className="truncate text-sm font-medium">{profile?.full_name || session?.user.email}</p>
+        <p className="truncate text-sm font-medium">{profile?.full_name || accountLabel(session?.user.email)}</p>
         <p className="truncate text-xs text-neutral">
           {roles.length ? roles.map((r) => ROLE_LABELS[r]).join(' · ') : 'Sin perfil asignado'}
         </p>

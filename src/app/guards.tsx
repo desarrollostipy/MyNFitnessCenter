@@ -5,10 +5,11 @@ import { LoadingState } from '@/components/states'
 import type { AppRole } from '@/types/domain'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { session, loading } = useAuth()
+  const { session, loading, mustChangePassword } = useAuth()
   const location = useLocation()
   if (loading) return <LoadingState />
   if (!session) return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  if (mustChangePassword) return <Navigate to="/crear-clave" replace />
   return <>{children}</>
 }
 

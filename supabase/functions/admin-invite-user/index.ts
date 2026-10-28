@@ -1,8 +1,20 @@
-// Invita a un usuario por email y le asigna un rol. Requiere ser admin del gimnasio.
+// Alta de usuarios del gimnasio. Requiere ser admin del gimnasio.
+//   * action "create_ci" (por defecto si llega "document"): crea la cuenta con el número de CI
+//     y un PIN temporal que el admin entrega en mano; al primer ingreso se obliga a cambiarlo.
+//   * action "reset_pin": genera un PIN temporal nuevo para un usuario del gimnasio.
+//   * action "invite" (si llega "email"): invitación por email (flujo anterior).
 // La service role key vive sólo aquí (variable de entorno de Supabase), nunca en el frontend.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const ROLES = ["admin", "accountant", "treasurer", "trainer", "student", "prospect"];
+
+// Las cuentas por CI usan un email técnico en un dominio reservado (RFC 2606): nunca recibe correo,
+// así que nadie puede pedir un enlace de recuperación hacia esa dirección. Mantener igual que src/lib/ciAuth.ts.
+const CI_EMAIL_DOMAIN = "ci.example.com";
+
+// PIN temporal: 8 caracteres en minúscula sin ambiguos (l, o, i, 0, 1), con letras y números.
+const PIN_LETTERS = "abcdefghjkmnpqrstuvwxyz";
+const PIN_DIGITS = "23456789";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +27,27 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...cors, "Content-Type": "application/json" },
   });
+}
+
+function randomFrom(alphabet: string, n: number): string[] {
+  const bytes = crypto.getRandomValues(new Uint32Array(n));
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]);
+}
+
+function generatePin(): string {
+  const chars = [...randomFrom(PIN_LETTERS, 4), ...randomFrom(PIN_DIGITS, 4)];
+  // Mezcla (Fisher–Yates) para que letras y números no queden en bloques.
+  const r = crypto.getRandomValues(new Uint32Array(chars.length));
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = r[i] % (i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
+}
+
+/** Igual que app.normalize_document: sin espacios ni puntos, en mayúsculas. */
+function normalizeDocument(doc: string): string {
+  return doc.replace(/[\s.]/g, "").toUpperCase();
 }
 
 Deno.serve(async (req) => {
@@ -32,21 +65,24 @@ Deno.serve(async (req) => {
   });
   const admin = createClient(url, serviceKey);
 
-  let body: { gym_id?: string; email?: string; full_name?: string; role?: string; student_id?: string };
+  let body: {
+    action?: string;
+    gym_id?: string;
+    email?: string;
+    document?: string;
+    full_name?: string;
+    role?: string;
+    student_id?: string;
+    user_id?: string;
+  };
   try {
     body = await req.json();
   } catch {
     return json({ error: "Cuerpo inválido" }, 400);
   }
 
-  const email = (body.email ?? "").trim().toLowerCase();
-  const fullName = (body.full_name ?? "").trim();
   const gymId = body.gym_id ?? "";
-  const role = body.role ?? "";
-
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Email inválido" }, 400);
-  if (fullName.length < 2) return json({ error: "Nombre requerido" }, 400);
-  if (!ROLES.includes(role)) return json({ error: "Rol inválido" }, 400);
+  const action = body.action ?? (body.document ? "create_ci" : "invite");
 
   const { data: caller } = await asCaller.auth.getUser();
   if (!caller.user) return json({ error: "No autenticado" }, 401);
@@ -59,25 +95,102 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!adminRow) return json({ error: "No autorizado" }, 403);
 
+  const audit = (act: string, entityId: string, after: Record<string, unknown>) =>
+    admin.from("audit_logs").insert({
+      gym_id: gymId,
+      actor_id: caller.user!.id,
+      action: act,
+      entity: "auth.users",
+      entity_id: entityId,
+      after,
+    });
+
+  // -------------------------------------------------------------------
+  // Nuevo PIN temporal
+  // -------------------------------------------------------------------
+  if (action === "reset_pin") {
+    const userId = body.user_id ?? "";
+    // Sólo usuarios de este gimnasio (con algún perfil o ficha de alumno vinculada).
+    const [{ data: roleRow }, { data: studentRow }] = await Promise.all([
+      asCaller.from("user_gym_roles").select("id").eq("gym_id", gymId).eq("user_id", userId).limit(1).maybeSingle(),
+      asCaller.from("students").select("id").eq("gym_id", gymId).eq("user_id", userId).maybeSingle(),
+    ]);
+    if (!roleRow && !studentRow) return json({ error: "El usuario no pertenece a este gimnasio" }, 404);
+    if (userId === caller.user.id) return json({ error: "Para su propia cuenta use Mi perfil → Cambiar contraseña" }, 400);
+
+    const { data: target, error: getErr } = await admin.auth.admin.getUserById(userId);
+    if (getErr || !target.user) return json({ error: "Usuario inexistente" }, 404);
+    const pin = generatePin();
+    const { error: updErr } = await admin.auth.admin.updateUserById(userId, {
+      password: pin,
+      user_metadata: { ...target.user.user_metadata, must_change_password: true },
+    });
+    if (updErr) return json({ error: updErr.message }, 400);
+    await audit("user.pin_reset", userId, {});
+    return json({ user_id: userId, pin });
+  }
+
+  const fullName = (body.full_name ?? "").trim();
+  const role = body.role ?? "";
+  if (fullName.length < 2) return json({ error: "Nombre requerido" }, 400);
+  if (!body.student_id && !ROLES.includes(role)) return json({ error: "Rol inválido" }, 400);
+
   let userId: string | undefined;
   let alreadyExisted = false;
-  const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { full_name: fullName },
-    redirectTo: siteUrl ? `${siteUrl}/restablecer` : undefined,
-  });
-  if (invited?.user) {
-    userId = invited.user.id;
-  } else if (inviteErr && /already|registered|exists/i.test(inviteErr.message)) {
-    // La persona ya tiene cuenta: se le asigna el perfil sin reenviar invitación.
-    for (let page = 1; page <= 20 && !userId; page++) {
-      const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-      userId = data.users.find((u) => u.email?.toLowerCase() === email)?.id;
-      if (data.users.length < 1000) break;
+  let pin: string | undefined;
+
+  if (action === "create_ci") {
+    // -----------------------------------------------------------------
+    // Alta por CI con PIN temporal
+    // -----------------------------------------------------------------
+    const doc = normalizeDocument(body.document ?? "");
+    if (!/^[0-9A-Z-]{3,20}$/.test(doc)) return json({ error: "Número de documento inválido" }, 400);
+    const email = `${doc.toLowerCase()}@${CI_EMAIL_DOMAIN}`;
+
+    pin = generatePin();
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email,
+      password: pin,
+      email_confirm: true,
+      user_metadata: { full_name: fullName, document: doc, must_change_password: true },
+    });
+    if (created?.user) {
+      userId = created.user.id;
+      await audit("user.create_ci", userId, { document: doc });
+    } else if (createErr && /already|registered|exists/i.test(createErr.message)) {
+      if (!body.student_id) return json({ error: `Ya existe un usuario con la CI ${doc}. Use "Nuevo PIN" en su fila.` }, 409);
+      // Alumno que ya tenía cuenta: se vincula sin cambiarle el acceso.
+      for (let page = 1; page <= 20 && !userId; page++) {
+        const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+        userId = data.users.find((u) => u.email?.toLowerCase() === email)?.id;
+        if (data.users.length < 1000) break;
+      }
+      alreadyExisted = !!userId;
+      pin = undefined;
     }
-    alreadyExisted = !!userId;
-  }
-  if (!userId) {
-    return json({ error: inviteErr?.message ?? "No se pudo invitar al usuario" }, 400);
+    if (!userId) return json({ error: createErr?.message ?? "No se pudo crear el usuario" }, 400);
+  } else {
+    // -----------------------------------------------------------------
+    // Invitación por email
+    // -----------------------------------------------------------------
+    const email = (body.email ?? "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Email inválido" }, 400);
+    const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
+      data: { full_name: fullName },
+      redirectTo: siteUrl ? `${siteUrl}/restablecer` : undefined,
+    });
+    if (invited?.user) {
+      userId = invited.user.id;
+    } else if (inviteErr && /already|registered|exists/i.test(inviteErr.message)) {
+      // La persona ya tiene cuenta: se le asigna el perfil sin reenviar invitación.
+      for (let page = 1; page <= 20 && !userId; page++) {
+        const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+        userId = data.users.find((u) => u.email?.toLowerCase() === email)?.id;
+        if (data.users.length < 1000) break;
+      }
+      alreadyExisted = !!userId;
+    }
+    if (!userId) return json({ error: inviteErr?.message ?? "No se pudo invitar al usuario" }, 400);
   }
 
   // Acceso al portal de un alumno: vincula la ficha y asigna el perfil Alumno (RPC auditada).
@@ -86,8 +199,11 @@ Deno.serve(async (req) => {
       p_student_id: body.student_id,
       p_user_id: userId,
     });
-    if (linkErr) return json({ error: linkErr.message }, 400);
-    return json({ user_id: userId, already_existed: alreadyExisted });
+    if (linkErr) {
+      if (pin && !alreadyExisted) await admin.auth.admin.deleteUser(userId); // no dejar cuentas a medias
+      return json({ error: linkErr.message }, 400);
+    }
+    return json({ user_id: userId, already_existed: alreadyExisted, pin });
   }
 
   // Asigna el rol con la RPC auditada, en nombre del admin solicitante.
@@ -97,7 +213,10 @@ Deno.serve(async (req) => {
     p_role: role,
     p_enabled: true,
   });
-  if (setErr) return json({ error: setErr.message }, 400);
+  if (setErr) {
+    if (pin && !alreadyExisted) await admin.auth.admin.deleteUser(userId); // no dejar cuentas a medias
+    return json({ error: setErr.message }, 400);
+  }
 
-  return json({ user_id: userId, already_existed: alreadyExisted });
+  return json({ user_id: userId, already_existed: alreadyExisted, pin });
 });

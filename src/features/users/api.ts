@@ -35,24 +35,34 @@ export function useSetUserRole(gymId: string) {
   })
 }
 
-export function useInviteUser(gymId: string) {
+type UserAdminResult = { user_id: string; already_existed?: boolean; pin?: string }
+
+async function callUserAdmin(body: Record<string, unknown>): Promise<UserAdminResult> {
+  const { data, error } = await supabase.functions.invoke('admin-invite-user', { body })
+  if (error) {
+    // El cuerpo de error de la Edge Function trae un mensaje en español.
+    const ctx = (error as { context?: Response }).context
+    const payload = ctx ? await ctx.json().catch(() => null) : null
+    throw new Error(payload?.error ?? error.message)
+  }
+  return data as UserAdminResult
+}
+
+/** Alta por CI (devuelve el PIN temporal) o invitación por email. */
+export function useCreateUser(gymId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (args: { email: string; full_name: string; role: AppRole; student_id?: string }) => {
-      const { data, error } = await supabase.functions.invoke('admin-invite-user', {
-        body: { gym_id: gymId, ...args },
-      })
-      if (error) {
-        // El cuerpo de error de la Edge Function trae un mensaje en español.
-        const ctx = (error as { context?: Response }).context
-        const body = ctx ? await ctx.json().catch(() => null) : null
-        throw new Error(body?.error ?? error.message)
-      }
-      return data as { user_id: string; already_existed?: boolean }
-    },
+    mutationFn: (args: { full_name: string; role: AppRole; document?: string; email?: string; student_id?: string }) =>
+      callUserAdmin({ gym_id: gymId, action: args.document ? 'create_ci' : 'invite', ...args }),
     onSuccess: (_d, args) => {
       qc.invalidateQueries({ queryKey: ['admin-users', gymId] })
       if (args.student_id) qc.invalidateQueries({ queryKey: ['student', args.student_id] })
     },
+  })
+}
+
+export function useResetPin(gymId: string) {
+  return useMutation({
+    mutationFn: (userId: string) => callUserAdmin({ gym_id: gymId, action: 'reset_pin', user_id: userId }),
   })
 }

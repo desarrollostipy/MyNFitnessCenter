@@ -10,6 +10,7 @@ import { LoadingState } from '@/components/states'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage'
 import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage'
+import { CreatePasswordPage } from '@/features/auth/pages/CreatePasswordPage'
 import { PublicHomePage } from '@/features/public/PublicHomePage'
 import { ConfigMissingPage, NoAccessPage, NotFoundPage } from '@/features/public/MessagePages'
 import { ProfilePage } from '@/features/account/ProfilePage'
@@ -70,6 +71,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/recuperar" element={<ForgotPasswordPage />} />
             <Route path="/restablecer" element={<ResetPasswordPage />} />
+            <Route path="/crear-clave" element={<CreatePasswordPage />} />
             <Route path="/sin-acceso" element={<NoAccessPage />} />
 
             <Route
