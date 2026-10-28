@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { errorMessage } from '@/lib/errors'
 import { todayISO } from '@/lib/format'
 import { isValidRuc } from '@/lib/fiscal'
+import { isValidPhone } from '@/lib/phone'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/form-controls'
@@ -29,8 +30,12 @@ const schema = z.object({
   birth_date: z
     .string()
     .refine((v) => v === '' || (v >= '1900-01-01' && v <= todayISO()), 'Fecha inválida'),
-  phone,
-  email: z.union([z.literal(''), z.string().trim().email('Email inválido')]),
+  phone: z
+    .string()
+    .trim()
+    .min(1, 'Ingrese el celular (se usa para enviar el recibo por WhatsApp)')
+    .refine(isValidPhone, 'Celular inválido. Ej.: 0981 123456'),
+  email: z.string().trim().min(1, 'Ingrese el email (ahí le llega la factura)').email('Email inválido'),
   address: z.string().trim().max(250),
   enrolled_on: z.string().min(1, 'Ingrese la fecha de inscripción'),
   emergency_contact_name: z.string().trim().max(120),
@@ -98,8 +103,8 @@ export function StudentFormDialog({
       last_name: v.last_name,
       document_number: v.document_number,
       birth_date: nul(v.birth_date),
-      phone: nul(v.phone),
-      email: nul(v.email),
+      phone: v.phone,
+      email: v.email,
       address: nul(v.address),
       enrolled_on: v.enrolled_on,
       emergency_contact_name: nul(v.emergency_contact_name),
@@ -145,11 +150,11 @@ export function StudentFormDialog({
           <Field label="Fecha de nacimiento" htmlFor="st-birth" error={errors.birth_date?.message}>
             <Input id="st-birth" type="date" max={todayISO()} {...register('birth_date')} />
           </Field>
-          <Field label="Teléfono / WhatsApp" htmlFor="st-phone" error={errors.phone?.message}>
-            <Input id="st-phone" type="tel" {...register('phone')} />
+          <Field label="Celular / WhatsApp" htmlFor="st-phone" error={errors.phone?.message} hint="Ahí se envía el recibo.">
+            <Input id="st-phone" type="tel" placeholder="0981 123456" aria-invalid={!!errors.phone} {...register('phone')} />
           </Field>
-          <Field label="Email" htmlFor="st-email" error={errors.email?.message}>
-            <Input id="st-email" type="email" {...register('email')} />
+          <Field label="Email" htmlFor="st-email" error={errors.email?.message} hint="Ahí le llega la factura electrónica.">
+            <Input id="st-email" type="email" aria-invalid={!!errors.email} {...register('email')} />
           </Field>
           <Field label="Dirección (opcional)" htmlFor="st-address" error={errors.address?.message}>
             <Input id="st-address" {...register('address')} />

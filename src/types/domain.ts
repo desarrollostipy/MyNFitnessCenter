@@ -1,18 +1,22 @@
 // Tipos de dominio. Cuando el proyecto Supabase esté enlazado, complementar con
 // `npx supabase gen types typescript --linked > src/types/database.ts`.
 
-export type AppRole = 'admin' | 'accountant' | 'treasurer' | 'trainer' | 'student' | 'prospect'
+export type AppRole = 'admin' | 'accountant' | 'treasurer' | 'cashier' | 'trainer' | 'student' | 'prospect'
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   admin: 'Administrador',
   accountant: 'Contador',
   treasurer: 'Tesorero',
+  cashier: 'Cajero',
   trainer: 'Entrenador',
   student: 'Alumno',
   prospect: 'Futuro alumno',
 }
 
-export const ALL_ROLES: AppRole[] = ['admin', 'accountant', 'treasurer', 'trainer', 'student', 'prospect']
+export const ALL_ROLES: AppRole[] = ['admin', 'accountant', 'treasurer', 'cashier', 'trainer', 'student', 'prospect']
+
+/** Atienden el mostrador: caja, cobros, venta rápida e ingreso. */
+export const FRONT_DESK_ROLES: AppRole[] = ['admin', 'treasurer', 'cashier']
 
 export interface UserProfile {
   id: string
@@ -270,6 +274,7 @@ export interface CashSession {
   opened_by: string
   opened_at: string
   opening_amount: number
+  closed_by: string | null
   closed_at: string | null
   expected_amount: number | null
   counted_amount: number | null
@@ -309,9 +314,9 @@ export interface Payment {
   status: 'posted' | 'voided'
   void_reason: string | null
   voided_at: string | null
-  students?: { first_name: string; last_name: string; document_number: string } | null
+  students?: { first_name: string; last_name: string; document_number: string; phone: string | null; email: string | null } | null
   payment_methods?: { name: string; affects_cash: boolean } | null
-  invoices?: Pick<Invoice, 'id' | 'invoice_number' | 'status'>[]
+  invoices?: Pick<Invoice, 'id' | 'invoice_number' | 'status' | 'cdc'>[]
 }
 
 // ---------------------------------------------------------------------
@@ -369,7 +374,7 @@ export interface InvoiceDraft {
     point: string | null
     transaction_type: string
   }
-  receiver: { kind: InvoiceReceiver; document: string | null; name: string }
+  receiver: { kind: InvoiceReceiver; document: string | null; name: string; email: string | null; phone: string | null }
   has_ci: boolean
   items: InvoiceItem[]
   total: number

@@ -13,7 +13,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components/states'
 import { CASH_SOURCE_LABELS, type CashSession } from '@/types/domain'
-import { cashTotals, useCashAdjustment, useCloseCash, useClosedSessions, useOpenCash, useOpenSession, useSessionMovements } from './api'
+import {
+  cashTotals,
+  useCashAdjustment,
+  useCloseCash,
+  useClosedSessions,
+  useOpenCash,
+  useOpenSession,
+  useSessionMovements,
+  useStaffNames,
+} from './api'
 
 export function CashPage() {
   const { gymId } = useAuth()
@@ -83,6 +92,11 @@ function OpenCashForm() {
 }
 
 function OpenSessionView({ session }: { session: CashSession }) {
+  const { gymId, hasRole, session: auth } = useAuth()
+  // Ingresos y salidas manuales de efectivo: sólo administración y tesorería.
+  const canAdjust = hasRole('admin', 'treasurer')
+  const names = useStaffNames(gymId, [session.opened_by])
+  const openedBy = session.opened_by === auth?.user.id ? 'vos' : names.data?.get(session.opened_by)
   const movements = useSessionMovements(session.id)
   const [adjust, setAdjust] = useState<'in' | 'out' | null>(null)
   const [closing, setClosing] = useState(false)
@@ -97,7 +111,15 @@ function OpenSessionView({ session }: { session: CashSession }) {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted-foreground">Abierta el {formatDateTime(session.opened_at)}</p>
+      <p className="text-sm text-muted-foreground">
+        Abierta el {formatDateTime(session.opened_at)}
+        {openedBy && (
+          <>
+            {' '}
+            por <span className="font-medium text-foreground">{openedBy}</span>
+          </>
+        )}
+      </p>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {cards.map((c) => (
           <Card key={c.label} className={cn('p-4', c.strong && 'border-foreground/30')}>
@@ -107,13 +129,17 @@ function OpenSessionView({ session }: { session: CashSession }) {
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:flex">
-        <Button variant="outline" onClick={() => setAdjust('in')}>
-          <ArrowDownLeft /> Ingreso
-        </Button>
-        <Button variant="outline" onClick={() => setAdjust('out')}>
-          <ArrowUpRight /> Salida
-        </Button>
+      <div className={cn('grid gap-2 sm:flex', canAdjust ? 'grid-cols-3' : 'grid-cols-1')}>
+        {canAdjust && (
+          <>
+            <Button variant="outline" onClick={() => setAdjust('in')}>
+              <ArrowDownLeft /> Ingreso
+            </Button>
+            <Button variant="outline" onClick={() => setAdjust('out')}>
+              <ArrowUpRight /> Salida
+            </Button>
+          </>
+        )}
         <Button variant="accent" onClick={() => setClosing(true)} className="sm:ml-auto">
           <Lock /> Cerrar caja
         </Button>
@@ -268,14 +294,16 @@ function CloseDialog({ session, expected, onClose }: { session: CashSession; exp
 }
 
 function ClosedSessions() {
-  const { gymId } = useAuth()
+  const { gymId, hasRole } = useAuth()
   const q = useClosedSessions(gymId)
+  const names = useStaffNames(gymId, (q.data ?? []).flatMap((s) => [s.opened_by, s.closed_by]))
   if (q.isLoading || !q.data) return null
+  const who = (id: string | null) => (id ? (names.data?.get(id) ?? '…') : '—')
 
   return (
     <Card className="mt-6">
       <CardHeader>
-        <CardTitle>Cierres anteriores</CardTitle>
+        <CardTitle>{hasRole('admin', 'treasurer', 'accountant') ? 'Cierres anteriores' : 'Mis cierres'}</CardTitle>
       </CardHeader>
       <CardContent>
         {!q.data.length ? (
@@ -287,7 +315,11 @@ function ClosedSessions() {
                 <div className="min-w-0">
                   <p>{formatDateTime(s.closed_at)}</p>
                   <p className="text-xs text-muted-foreground">
-                    Esperado {formatPYG(s.expected_amount)} · Contado {formatPYG(s.counted_amount)}
+                    Abrió <span className="text-foreground">{who(s.opened_by)}</span> el {formatDateTime(s.opened_at)} · Cerró{' '}
+                    <span className="text-foreground">{who(s.closed_by)}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Inicial {formatPYG(s.opening_amount)} · Esperado {formatPYG(s.expected_amount)} · Contado {formatPYG(s.counted_amount)}
                   </p>
                   {s.close_notes && <p className="text-xs text-muted-foreground">{s.close_notes}</p>}
                 </div>

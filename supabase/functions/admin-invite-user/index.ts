@@ -6,7 +6,7 @@
 // La service role key vive sólo aquí (variable de entorno de Supabase), nunca en el frontend.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
-const ROLES = ["admin", "accountant", "treasurer", "trainer", "student", "prospect"];
+const ROLES = ["admin", "accountant", "treasurer", "cashier", "trainer", "student", "prospect"];
 
 // Las cuentas por CI usan un email técnico en un dominio reservado (RFC 2606): nunca recibe correo,
 // así que nadie puede pedir un enlace de recuperación hacia esa dirección. Mantener igual que src/lib/ciAuth.ts.

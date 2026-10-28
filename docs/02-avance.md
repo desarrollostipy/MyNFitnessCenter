@@ -282,3 +282,26 @@
   - el tipo de transacción (la factura de ejemplo dice "Venta de mercadería");
   - si hay un monto máximo para facturar a "Sin nombre";
   - el trámite y la numeración para pasar a un proveedor en la Etapa B.
+
+## Rol Cajero, registro de cajas y contacto del alumno (28/10/2026)
+- **Rol Cajero** (`cashier`, migraciones `20261106000001` y `20261106000002`). Lo eligió el gimnasio como "solo mostrador":
+  - **Puede:** abrir y cerrar caja, cobrar cuotas, venta rápida, control de ingreso, ver e imprimir recibos y registrar facturas.
+  - **No puede:** anular, hacer ingresos o salidas manuales de efectivo, registrar egresos, ni ver cobranzas, egresos, prospectos o reportes.
+  - **Qué ve en la base (RLS):** alumnos y cuotas (para cobrar); cobros e ingresos del día; la caja abierta y las que abrió o cerró él.
+  - Las RPC de mostrador suman `cashier`; la venta rápida usa `app.is_front_desk`.
+  - Es el perfil por defecto al crear usuarios por CI.
+- **Cierre de caja:** cualquiera del mostrador puede cerrar (cambio de turno), como eligió el gimnasio.
+  - La pantalla Caja muestra quién abrió la caja actual.
+  - Cada cierre muestra quién abrió, quién cerró, el inicial, lo esperado, lo contado y la diferencia.
+  - Los nombres salen de `staff_names()`, que sólo devuelve personal del gimnasio. La auditoría sigue registrando `cash.open` y `cash.close`.
+- **Contacto del alumno:**
+  - El celular (recibo por WhatsApp) y el email (factura electrónica) son obligatorios en las altas: lo exige el formulario y el trigger `students_require_contact`.
+  - Una vez cargados no se pueden borrar. La CI ya era obligatoria y el RUC sigue siendo opcional.
+  - En producción, los 14 alumnos ya tenían ambos datos.
+- **Venta rápida:**
+  - Exige celular y email para una persona nueva.
+  - Si un alumno existente no los tiene, se piden y se completan en su ficha.
+- **Recibo:**
+  - "Enviar por WhatsApp" abre el chat con el celular del alumno (formato 595…).
+  - Si el cobro ya tiene factura, el mensaje incluye su número y su CDC.
+  - El panel de factura muestra el email del receptor para cargarlo en e-Kuatia.

@@ -8,12 +8,15 @@ import { ErrorState, LoadingState } from '@/components/states'
 import { fullName } from '@/types/domain'
 import { InvoicePanel } from '@/features/invoicing/InvoicePanel'
 import { StudentInvoiceNote } from '@/features/invoicing/StudentInvoiceNote'
-import { useReceipt } from './api'
+import { EKUATIA_CONSULTA_URL } from '@/lib/fiscal'
+import { waNumber } from '@/lib/phone'
+import { issuedInvoice, useReceipt } from './api'
 
 export function ReceiptPage() {
   const { id } = useParams()
   const { gymId, hasRole } = useAuth()
-  const isStaff = hasRole('admin', 'accountant', 'treasurer')
+  const isStaff = hasRole('admin', 'accountant', 'treasurer', 'cashier')
+  const canOpenProfile = hasRole('admin', 'accountant', 'treasurer')
   const q = useReceipt(id, gymId)
 
   if (q.isLoading) return <LoadingState />
@@ -22,6 +25,7 @@ export function ReceiptPage() {
   const { payment: p, allocations, gym } = q.data
   const voided = p.status === 'voided'
   const student = p.students ? fullName(p.students) : '—'
+  const invoice = issuedInvoice(p)
   const shareText = [
     `${gym.name} — Recibo interno ${p.receipt_number}`,
     `Alumno: ${student}`,
@@ -29,21 +33,28 @@ export function ReceiptPage() {
     `Fecha: ${formatDateTime(p.paid_at)}`,
     ...allocations.map((a) => `• ${a.charges?.concept}: ${formatPYG(a.amount)}`),
     'Comprobante interno, no válido como factura.',
+    ...(invoice
+      ? [`Factura electrónica ${invoice.invoice_number} — CDC ${invoice.cdc}`, `Consulta: ${EKUATIA_CONSULTA_URL}`]
+      : []),
   ].join('\n')
+  // El staff lo envía directo al celular del alumno; el alumno lo comparte a quien quiera.
+  const waTo = isStaff ? waNumber(p.students?.phone) : null
+  const back = canOpenProfile
+    ? { to: `/admin/alumnos/${p.student_id}`, label: 'Ficha del alumno' }
+    : isStaff
+      ? { to: '/caja', label: 'Caja' }
+      : { to: '/mi/pagos', label: 'Mis recibos' }
 
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 print:hidden">
-        <Link
-          to={isStaff ? `/admin/alumnos/${p.student_id}` : '/mi/pagos'}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" /> {isStaff ? 'Ficha del alumno' : 'Mis recibos'}
+        <Link to={back.to} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-4" /> {back.label}
         </Link>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <a href={`https://wa.me/?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noreferrer">
-              <MessageCircle /> WhatsApp
+            <a href={`https://wa.me/${waTo ?? ''}?text=${encodeURIComponent(shareText)}`} target="_blank" rel="noreferrer">
+              <MessageCircle /> {waTo ? 'Enviar por WhatsApp' : 'WhatsApp'}
             </a>
           </Button>
           <Button onClick={() => window.print()}>

@@ -22,7 +22,7 @@ import {
   Users,
   UsersRound,
 } from 'lucide-react'
-import type { AppRole } from '@/types/domain'
+import { FRONT_DESK_ROLES, type AppRole } from '@/types/domain'
 
 export interface NavItem {
   label: string
@@ -49,8 +49,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Recepción',
     items: [
-      { label: 'Control de ingreso', to: '/ingreso', icon: DoorOpen, roles: ['admin', 'treasurer'], mobile: 0, short: 'Ingreso' },
-      { label: 'Venta rápida', to: '/caja/venta-rapida', icon: ShoppingBag, roles: ['admin', 'treasurer'], mobile: 0.2, short: 'Vender' },
+      { label: 'Control de ingreso', to: '/ingreso', icon: DoorOpen, roles: FRONT_DESK_ROLES, mobile: 0, short: 'Ingreso' },
+      { label: 'Venta rápida', to: '/caja/venta-rapida', icon: ShoppingBag, roles: FRONT_DESK_ROLES, mobile: 0.2, short: 'Vender' },
       // Vista previa (próxima etapa): la pantalla lo indica y no tiene controles activos.
       { label: 'Molinete (vista previa)', to: '/admin/molinete', icon: Router, roles: ['admin'] },
     ],
@@ -58,8 +58,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Caja',
     items: [
-      { label: 'Cobrar cuota', to: '/caja/cobrar', icon: Wallet, roles: ['admin', 'treasurer'], mobile: 0.4, short: 'Cobrar' },
-      { label: 'Caja', to: '/caja', icon: Landmark, roles: ['admin', 'treasurer'], mobile: 4 },
+      { label: 'Cobrar cuota', to: '/caja/cobrar', icon: Wallet, roles: FRONT_DESK_ROLES, mobile: 0.4, short: 'Cobrar' },
+      { label: 'Caja', to: '/caja', icon: Landmark, roles: FRONT_DESK_ROLES, mobile: 4 },
       { label: 'Cobranzas', to: '/admin/cobros', icon: BadgeDollarSign, roles: ['admin', 'accountant', 'treasurer'] },
       { label: 'Egresos', to: '/admin/egresos', icon: Receipt, roles: ['admin', 'accountant', 'treasurer'] },
     ],
@@ -129,7 +129,7 @@ export function mobileItems(hasRole: (...r: AppRole[]) => boolean): NavItem[] {
 /** Primera pantalla útil según los roles del usuario. */
 export function homePathFor(hasRole: (...r: AppRole[]) => boolean): string {
   if (hasRole('admin', 'accountant')) return '/admin/dashboard'
-  if (hasRole('treasurer')) return '/ingreso'
+  if (hasRole('treasurer', 'cashier')) return '/ingreso'
   if (hasRole('trainer')) return '/entrenador/alumnos'
   if (hasRole('student')) return '/mi'
   return '/cuenta'

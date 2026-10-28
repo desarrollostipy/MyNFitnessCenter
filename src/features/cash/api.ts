@@ -60,6 +60,21 @@ export function useClosedSessions(gymId: string) {
   })
 }
 
+/** Nombres del personal que abrió o cerró cajas. */
+export function useStaffNames(gymId: string, userIds: (string | null | undefined)[]) {
+  const ids = [...new Set(userIds.filter((x): x is string => !!x))].sort()
+  return useQuery({
+    queryKey: ['staff-names', gymId, ids],
+    enabled: ids.length > 0,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('staff_names', { p_gym_id: gymId, p_user_ids: ids })
+      if (error) throw error
+      return new Map((data as { user_id: string; full_name: string }[]).map((r) => [r.user_id, r.full_name || 'Sin nombre']))
+    },
+  })
+}
+
 /** Totales de efectivo de una caja a partir de sus movimientos. */
 export function cashTotals(session: CashSession, movements: CashMovement[]) {
   const ins = movements.filter((m) => m.direction === 'in').reduce((s, m) => s + Number(m.amount), 0)
@@ -171,7 +186,7 @@ export function useVoidPayment() {
 }
 
 const PAYMENT_SELECT =
-  '*, students(first_name, last_name, document_number), payment_methods(name, affects_cash), invoices(id, invoice_number, status)'
+  '*, students(first_name, last_name, document_number, phone, email), payment_methods(name, affects_cash), invoices(id, invoice_number, status, cdc)'
 
 /** Factura vigente de un cobro, si tiene. */
 export const issuedInvoice = (p: Payment) => p.invoices?.find((i) => i.status === 'issued')

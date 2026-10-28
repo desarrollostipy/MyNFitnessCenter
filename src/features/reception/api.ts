@@ -60,6 +60,7 @@ export function useQuickSale(gymId: string) {
       lastName: string
       document: string
       phone: string
+      email: string
       planId: string
       methodId: string | null
       reference: string
@@ -78,6 +79,7 @@ export function useQuickSale(gymId: string) {
         p_reference: args.reference || null,
         p_idempotency_key: args.idempotencyKey,
         p_check_in: args.checkIn,
+        p_email: args.email || null,
       })
       if (error) throw error
       return data as QuickSaleResult

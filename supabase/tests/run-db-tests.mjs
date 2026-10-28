@@ -393,22 +393,22 @@ await test('admin crea entrenadores', async () => {
 await test('admin crea alumnos; el documento se normaliza', async () => {
   await as(admin2)
   const a = await db.query(
-    `insert into public.students (gym_id, first_name, last_name, document_number, email, user_id)
-     values ($1, ' María ', 'López', '4.512.333', 'MARIA@Mail.com', $2) returning id, document_number, email, first_name`,
+    `insert into public.students (gym_id, first_name, last_name, document_number, email, phone, user_id)
+     values ($1, ' María ', 'López', '4.512.333', 'MARIA@Mail.com', '0981 222333', $2) returning id, document_number, email, first_name`,
     [GYM, studentUser],
   )
   studentA = a.rows[0].id
   assert(a.rows[0].document_number === '4512333', `doc: ${a.rows[0].document_number}`)
   assert(a.rows[0].email === 'maria@mail.com' && a.rows[0].first_name === 'María', 'no normalizó')
   studentB = (
-    await db.query(`insert into public.students (gym_id, first_name, last_name, document_number) values ($1, 'Juan', 'Pérez', '3200111') returning id`, [GYM])
+    await db.query(`insert into public.students (gym_id, first_name, last_name, document_number, phone, email) values ($1, 'Juan', 'Pérez', '3200111', '0981 333444', 'juan@mail.com') returning id`, [GYM])
   ).rows[0].id
 })
 
 await test('documento duplicado (con otro formato) rechazado', async () => {
   await as(admin2)
   await expectError(
-    db.query(`insert into public.students (gym_id, first_name, last_name, document_number) values ($1, 'Otra', 'Persona', '4512 333')`, [GYM]),
+    db.query(`insert into public.students (gym_id, first_name, last_name, document_number, phone, email) values ($1, 'Otra', 'Persona', '4512 333', '0981 444555', 'otra@mail.com')`, [GYM]),
     '23505',
   )
 })
@@ -417,7 +417,7 @@ await test('tesorero ve alumnos pero no los crea ni modifica', async () => {
   await as(treasurer)
   assert((await db.query(`select id from public.students`)).rows.length === 2, 'no ve alumnos')
   await expectError(
-    db.query(`insert into public.students (gym_id, first_name, last_name, document_number) values ($1, 'X', 'Y', '999999')`, [GYM]),
+    db.query(`insert into public.students (gym_id, first_name, last_name, document_number, phone, email) values ($1, 'X', 'Y', '999999', '0981 555666', 'x@mail.com')`, [GYM]),
   )
   const u = await db.query(`update public.students set phone = '1' where id = $1`, [studentB])
   assert(u.affectedRows === 0, 'modificó')
@@ -905,7 +905,7 @@ let walkIn
 
 await test('venta rápida: alta mínima + pase + cobro + ingreso; idempotente', async () => {
   await as(treasurer)
-  const r1 = (await db.query(`select public.quick_sale($1, null, 'Ana', 'Benítez', '4.123.456', '0981 111222', $2, $3, null, $4) as r`, [GYM, dayPass, cashId, qkey(1)])).rows[0].r
+  const r1 = (await db.query(`select public.quick_sale($1, null, 'Ana', 'Benítez', '4.123.456', '0981 111222', $2, $3, null, $4, true, 'Ana@Mail.com') as r`, [GYM, dayPass, cashId, qkey(1)])).rows[0].r
   const r2 = (await db.query(`select public.quick_sale($1, null, 'Ana', 'Benítez', '4123456', null, $2, $3, null, $4) as r`, [GYM, dayPass, cashId, qkey(1)])).rows[0].r
   walkIn = r1.student_id
   assert(r1.student_created && r1.payment_id && r1.check_in?.access_ok === true, JSON.stringify(r1))
@@ -928,7 +928,7 @@ await test('venta rápida reconoce el documento y no vende el mismo pase dos vec
 await test('venta rápida fallida no deja alumno ni cobro a medias; entrenador no puede vender', async () => {
   await as(treasurer)
   const badMethod = '00000000-0000-4000-8000-000000000999'
-  await expectError(db.query(`select public.quick_sale($1, null, 'Luis', 'Gómez', '5550001', null, $2, $3, null, $4)`, [GYM, dayPass, badMethod, qkey(3)]), 'P0001')
+  await expectError(db.query(`select public.quick_sale($1, null, 'Luis', 'Gómez', '5550001', '0981 777888', $2, $3, null, $4, true, 'luis@mail.com')`, [GYM, dayPass, badMethod, qkey(3)]), 'P0001')
   await db.exec('reset role')
   assert((await db.query(`select count(*)::int as n from public.students where document_number = '5550001'`)).rows[0].n === 0, 'quedó el alumno')
   await as(trainerUser)
@@ -1059,6 +1059,65 @@ await test('facturas: nadie escribe directo; el alumno sólo ve las de sus cobro
   const rows = (await db.query(`select payment_id from public.invoices`)).rows
   assert(rows.length === 1 && rows[0].payment_id === payA, `vio ${rows.length}`)
   await expectError(db.query(`select public.invoice_draft($1)`, [payA]), '42501')
+})
+
+console.log('\nContacto del alumno y rol Cajero')
+const cashier = await mkUser('cajero@myn.test', 'Carla Cajera')
+await db.query(`insert into public.user_gym_roles (user_id, gym_id, role) values ($1, $2, 'cashier')`, [cashier, GYM])
+
+await test('alumno: celular y email obligatorios al crear; no se pueden borrar', async () => {
+  await as(admin2)
+  await expectError(db.query(`insert into public.students (gym_id, first_name, last_name, document_number, phone) values ($1, 'Sin', 'Mail', '7770001', '0981 123456')`, [GYM]), 'P0001')
+  await expectError(db.query(`insert into public.students (gym_id, first_name, last_name, document_number, email) values ($1, 'Sin', 'Cel', '7770002', 'a@b.com')`, [GYM]), 'P0001')
+  await expectError(db.query(`update public.students set phone = null where id = $1`, [studentB]), 'P0001')
+  await expectError(db.query(`update public.students set email = null where id = $1`, [studentB]), 'P0001')
+  await as(cashier)
+  await expectError(db.query(`select public.quick_sale($1, null, 'Sin', 'Mail', '7770003', '0981 123456', $2, $3, null, $4)`, [GYM, dayPass, cashId, qkey(20)]), 'P0001')
+})
+
+await test('cajero: cierra la caja del turno anterior y abre la suya; queda quién abrió y cerró', async () => {
+  await as(cashier)
+  const open = (await db.query(`select id, opened_by from public.cash_sessions where status = 'open'`)).rows[0]
+  assert(open && open.opened_by !== cashier, 'no ve la caja abierta por otro')
+  const exp = (await db.query(`select app.cash_expected($1) as e`, [open.id])).rows[0].e
+  await db.query(`select public.close_cash_session($1, $2)`, [open.id, exp])
+  const mine = (await db.query(`select public.open_cash_session($1, 50000) as id`, [GYM])).rows[0].id
+  await db.exec('reset role')
+  const closed = (await db.query(`select opened_by, closed_by from public.cash_sessions where id = $1`, [open.id])).rows[0]
+  const opened = (await db.query(`select opened_by from public.cash_sessions where id = $1`, [mine])).rows[0]
+  assert(closed.closed_by === cashier && closed.opened_by !== cashier && opened.opened_by === cashier, JSON.stringify({ closed, opened }))
+  await as(treasurer)
+  const names = (await db.query(`select * from public.staff_names($1, $2)`, [GYM, [cashier, closed.opened_by]])).rows
+  assert(names.some((n) => n.full_name === 'Carla Cajera') && names.length === 2, JSON.stringify(names))
+  await as(trainerUser)
+  await expectError(db.query(`select * from public.staff_names($1, $2)`, [GYM, [cashier]]), '42501')
+})
+
+await test('cajero: venta rápida, ingreso y registro de factura', async () => {
+  await as(cashier)
+  const r = (await db.query(`select public.quick_sale($1, null, 'Eva', 'Ruiz', '7770004', '0982 100200', $2, $3, null, $4, true, 'eva@mail.com') as r`, [GYM, dayPass, cashId, qkey(21)])).rows[0].r
+  assert(r.payment_id && r.check_in?.access_ok, JSON.stringify(r))
+  const d = (await db.query(`select public.invoice_draft($1) as r`, [r.payment_id])).rows[0].r
+  assert(d.receiver.email === 'eva@mail.com' && d.receiver.phone === '0982 100200', JSON.stringify(d.receiver))
+  await db.query(`select public.register_invoice($1, $2)`, [r.payment_id, mkCdc({ number: 5000 })])
+  const st = (await db.query(`select public.check_access($1) as r`, [r.student_id])).rows[0].r
+  assert(st.ok === true, JSON.stringify(st))
+})
+
+await test('cajero: no anula, no hace movimientos manuales ni egresos, no ve historiales', async () => {
+  const pay = (await db.query(`select id from public.payments where status = 'posted' order by paid_at limit 1`)).rows[0].id
+  await db.query(`update public.payments set paid_at = now() - interval '3 days' where id = $1`, [pay])
+  const open = (await db.query(`select id from public.cash_sessions where status = 'open'`)).rows[0].id
+  const catId2 = (await db.query(`select id from public.expense_categories limit 1`)).rows[0].id
+  await as(cashier)
+  await expectError(db.query(`select public.void_payment($1, 'Prueba')`, [pay]), '42501')
+  await expectError(db.query(`select public.register_cash_adjustment($1, 'out', 1000, 'Retiro')`, [open]), '42501')
+  await expectError(db.query(`select public.register_expense($1, $2, 'Gasto', 1000, $3, current_date)`, [GYM, catId2, cashId]), '42501')
+  assert((await db.query(`select id from public.payments where id = $1`, [pay])).rows.length === 0, 've cobros de otros días')
+  assert((await db.query(`select count(*)::int as n from public.expenses`)).rows[0].n === 0, 've egresos')
+  assert((await db.query(`select count(*)::int as n from public.leads`)).rows[0].n === 0, 've prospectos')
+  const sessions = (await db.query(`select opened_by, closed_by, status from public.cash_sessions`)).rows
+  assert(sessions.every((s) => s.status === 'open' || s.opened_by === cashier || s.closed_by === cashier), 've cajas ajenas cerradas')
 })
 
 console.log('\nPrivilegios')

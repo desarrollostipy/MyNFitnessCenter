@@ -61,7 +61,7 @@ export function UsersPage() {
   const onToggle = (user: AdminUserRow, role: AppRole, enabled: boolean) => {
     const change = { user, role, enabled }
     // Los perfiles administrativos y cualquier cambio sobre uno mismo requieren confirmación.
-    const critical = ['admin', 'accountant', 'treasurer'].includes(role) || user.user_id === session?.user.id
+    const critical = ['admin', 'accountant', 'treasurer', 'cashier'].includes(role) || user.user_id === session?.user.id
     if (critical) setPending(change)
     else apply(change)
   }
@@ -250,7 +250,7 @@ function CreateByCiDialog({ onClose, onCreated }: { onClose: () => void; onCreat
   const create = useCreateUser(gymId)
   const { register, handleSubmit, formState } = useForm<CiValues>({
     resolver: zodResolver(ciSchema),
-    defaultValues: { full_name: '', document: '', role: 'treasurer' },
+    defaultValues: { full_name: '', document: '', role: 'cashier' },
   })
 
   const onSubmit = (v: CiValues) =>

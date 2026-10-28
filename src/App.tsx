@@ -39,6 +39,7 @@ import { MyHomePage, MyMembershipPage, MyPaymentsPage } from '@/features/portal/
 import { CheckInPage } from '@/features/reception/CheckInPage'
 import { QuickSalePage } from '@/features/reception/QuickSalePage'
 import { TurnstilePreviewPage } from '@/features/turnstile/TurnstilePreviewPage'
+import { FRONT_DESK_ROLES } from '@/types/domain'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -92,12 +93,12 @@ export default function App() {
               <Route path="/admin/prospectos" element={<RequireRole roles={['admin', 'treasurer']}><LeadsPage /></RequireRole>} />
               <Route path="/admin/alumnos" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><StudentsPage /></RequireRole>} />
               <Route path="/admin/alumnos/:id" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><StudentDetailPage /></RequireRole>} />
-              <Route path="/caja" element={<RequireRole roles={['admin', 'treasurer']}><CashPage /></RequireRole>} />
-              <Route path="/caja/cobrar" element={<RequireRole roles={['admin', 'treasurer']}><CollectPage /></RequireRole>} />
-              <Route path="/caja/venta-rapida" element={<RequireRole roles={['admin', 'treasurer']}><QuickSalePage /></RequireRole>} />
+              <Route path="/caja" element={<RequireRole roles={FRONT_DESK_ROLES}><CashPage /></RequireRole>} />
+              <Route path="/caja/cobrar" element={<RequireRole roles={FRONT_DESK_ROLES}><CollectPage /></RequireRole>} />
+              <Route path="/caja/venta-rapida" element={<RequireRole roles={FRONT_DESK_ROLES}><QuickSalePage /></RequireRole>} />
               <Route path="/admin/molinete" element={<RequireRole roles={['admin']}><TurnstilePreviewPage /></RequireRole>} />
-              <Route path="/ingreso" element={<RequireRole roles={['admin', 'treasurer']}><CheckInPage /></RequireRole>} />
-              <Route path="/recibo/:id" element={<RequireRole roles={['admin', 'accountant', 'treasurer', 'student']}><ReceiptPage /></RequireRole>} />
+              <Route path="/ingreso" element={<RequireRole roles={FRONT_DESK_ROLES}><CheckInPage /></RequireRole>} />
+              <Route path="/recibo/:id" element={<RequireRole roles={['admin', 'accountant', 'treasurer', 'cashier', 'student']}><ReceiptPage /></RequireRole>} />
               <Route path="/mi" element={<RequireRole roles={['student']}><MyHomePage /></RequireRole>} />
               <Route path="/mi/membresia" element={<RequireRole roles={['student']}><MyMembershipPage /></RequireRole>} />
               <Route path="/mi/pagos" element={<RequireRole roles={['student']}><MyPaymentsPage /></RequireRole>} />

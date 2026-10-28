@@ -12,7 +12,7 @@ import { Field, Input } from '@/components/ui/input'
 import { CheckboxField } from '@/components/ui/form-controls'
 import { ReasonDialog } from '@/components/ReasonDialog'
 import { ErrorState, LoadingState } from '@/components/states'
-import { INVOICE_RECEIVER_LABELS, INVOICE_STATUS_LABELS, type Invoice } from '@/types/domain'
+import { FRONT_DESK_ROLES, INVOICE_RECEIVER_LABELS, INVOICE_STATUS_LABELS, type Invoice } from '@/types/domain'
 import { useCancelInvoice, useInvoiceDraft, usePaymentInvoices, useRegisterInvoice } from './api'
 
 async function copyText(text: string) {
@@ -79,7 +79,7 @@ export function InvoicePanel({ paymentId, paymentVoided }: { paymentId: string; 
         ) : paymentVoided ? (
           <p className="text-sm text-muted-foreground">El cobro está anulado: no corresponde facturarlo.</p>
         ) : (
-          <InvoiceDraftSteps paymentId={paymentId} canRegister={hasRole('admin', 'treasurer')} />
+          <InvoiceDraftSteps paymentId={paymentId} canRegister={hasRole(...FRONT_DESK_ROLES)} />
         )}
 
         {past.length > 0 && (
@@ -198,6 +198,12 @@ function InvoiceDraftSteps({ paymentId, canRegister }: { paymentId: string; canR
             <CopyRow label={d.receiver.kind === 'ruc' ? 'RUC' : 'Documento'} value={d.receiver.document} />
           )}
           <CopyRow label={d.receiver.kind === 'ruc' ? 'Razón social' : 'Nombre'} value={d.receiver.name} />
+          {d.receiver.kind !== 'anonymous' &&
+            (d.receiver.email ? (
+              <CopyRow label="Email (la DNIT le envía la factura)" value={d.receiver.email} />
+            ) : (
+              <p className="py-2 text-sm text-warning">El alumno no tiene email cargado: complételo en su ficha para que le llegue la factura.</p>
+            ))}
           {d.items.map((it, i) => (
             <div key={i} className="py-1">
               <CopyRow label={`Ítem ${i + 1} · descripción (cantidad 1, IVA 10%)`} value={it.description} />
@@ -240,7 +246,7 @@ function InvoiceDraftSteps({ paymentId, canRegister }: { paymentId: string; canR
             </Button>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Sólo administración o recepción registran facturas.</p>
+          <p className="text-sm text-muted-foreground">Sólo administración, tesorería o caja registran facturas.</p>
         )}
       </section>
     </>

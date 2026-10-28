@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { errorMessage } from '@/lib/errors'
 import { formatPYG } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { isValidPhone } from '@/lib/phone'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { usePaymentMethods, usePlans } from '@/features/catalog/api'
 import { planDurationLabel } from '@/features/catalog/planUtils'
@@ -24,7 +25,10 @@ interface NewPerson {
   lastName: string
   document: string
   phone: string
+  email: string
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const DOC_RE = /^[0-9A-Za-z.\- ]{3,20}$/
 
@@ -41,7 +45,7 @@ export function QuickSalePage() {
   const studentId = params.get('alumno')
   const initialDoc = (location.state as { doc?: string } | null)?.doc ?? ''
   const [person, setPerson] = useState<NewPerson | null>(
-    initialDoc && !studentId ? { firstName: '', lastName: '', document: /\d/.test(initialDoc) ? initialDoc : '', phone: '' } : null,
+    initialDoc && !studentId ? { firstName: '', lastName: '', document: /\d/.test(initialDoc) ? initialDoc : '', phone: '', email: '' } : null,
   )
 
   return (
@@ -63,7 +67,7 @@ export function QuickSalePage() {
           placeholder="Buscar por documento o nombre"
           onPick={(id) => setParams({ alumno: id })}
           notFound={(term) => (
-            <Button variant="outline" onClick={() => setPerson({ firstName: '', lastName: '', document: /\d/.test(term) ? term : '', phone: '' })}>
+            <Button variant="outline" onClick={() => setPerson({ firstName: '', lastName: '', document: /\d/.test(term) ? term : '', phone: '', email: '' })}>
               <UserPlus /> Registrar persona nueva
             </Button>
           )}
@@ -71,7 +75,7 @@ export function QuickSalePage() {
       )}
       {!studentId && !person && (
         <div className="mt-3 text-center">
-          <Button variant="ghost" onClick={() => setPerson({ firstName: '', lastName: '', document: '', phone: '' })}>
+          <Button variant="ghost" onClick={() => setPerson({ firstName: '', lastName: '', document: '', phone: '', email: '' })}>
             <UserPlus /> Es una persona nueva
           </Button>
         </div>
@@ -114,13 +118,25 @@ function SaleForm({
   const free = plan?.price === 0
   const needsCash = !free && !!method?.affects_cash && !session.data
 
-  const personErrors = person
-    ? {
-        firstName: !person.firstName.trim() ? 'Ingrese el nombre' : undefined,
-        lastName: !person.lastName.trim() ? 'Ingrese el apellido' : undefined,
-        document: !DOC_RE.test(person.document.trim()) ? 'Documento inválido' : undefined,
-      }
-    : {}
+  // Alumno existente sin celular o email: se completan acá (los pide el recibo y la factura).
+  const [contact, setContact] = useState({ phone: '', email: '' })
+  const s = student.data
+  const askPhone = !!person || (!!s && !s.phone)
+  const askEmail = !!person || (!!s && !s.email)
+  const phoneValue = person ? person.phone : contact.phone
+  const emailValue = person ? person.email : contact.email
+
+  const personErrors = {
+    ...(person
+      ? {
+          firstName: !person.firstName.trim() ? 'Ingrese el nombre' : undefined,
+          lastName: !person.lastName.trim() ? 'Ingrese el apellido' : undefined,
+          document: !DOC_RE.test(person.document.trim()) ? 'Documento inválido' : undefined,
+        }
+      : {}),
+    phone: askPhone && !isValidPhone(phoneValue) ? 'Celular inválido. Ej.: 0981 123456' : undefined,
+    email: askEmail && !EMAIL_RE.test(emailValue.trim()) ? 'Ingrese un email válido' : undefined,
+  }
   const personInvalid = Object.values(personErrors).some(Boolean)
 
   const submit = () => {
@@ -134,7 +150,8 @@ function SaleForm({
         firstName: person?.firstName.trim() ?? '',
         lastName: person?.lastName.trim() ?? '',
         document: person?.document.trim() ?? '',
-        phone: person?.phone.trim() ?? '',
+        phone: askPhone ? phoneValue.trim() : '',
+        email: askEmail ? emailValue.trim() : '',
         planId: plan.id,
         methodId: free ? null : method!.id,
         reference,
@@ -180,9 +197,27 @@ function SaleForm({
               <Field label="Documento (CI)" htmlFor="qs-doc" error={touched ? personErrors.document : undefined} hint="Si ya existe, se usa su ficha.">
                 <Input id="qs-doc" inputMode="numeric" maxLength={20} value={person.document} onChange={set('document')} />
               </Field>
-              <Field label="Teléfono (opcional)" htmlFor="qs-phone">
-                <Input id="qs-phone" type="tel" maxLength={30} value={person.phone} onChange={set('phone')} />
+              <Field label="Celular / WhatsApp" htmlFor="qs-phone" error={touched ? personErrors.phone : undefined} hint="Ahí se envía el recibo.">
+                <Input id="qs-phone" type="tel" placeholder="0981 123456" maxLength={30} value={person.phone} onChange={set('phone')} />
               </Field>
+              <Field label="Email" htmlFor="qs-email" error={touched ? personErrors.email : undefined} hint="Ahí le llega la factura.">
+                <Input id="qs-email" type="email" maxLength={254} value={person.email} onChange={set('email')} />
+              </Field>
+            </CardContent>
+          )}
+          {!person && (askPhone || askEmail) && (
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <p className="text-sm text-warning sm:col-span-2">Faltan datos de contacto del alumno: complételos para enviarle el recibo y la factura.</p>
+              {askPhone && (
+                <Field label="Celular / WhatsApp" htmlFor="qs-phone" error={touched ? personErrors.phone : undefined}>
+                  <Input id="qs-phone" type="tel" placeholder="0981 123456" maxLength={30} value={contact.phone} onChange={(e) => setContact({ ...contact, phone: e.target.value })} />
+                </Field>
+              )}
+              {askEmail && (
+                <Field label="Email" htmlFor="qs-email" error={touched ? personErrors.email : undefined}>
+                  <Input id="qs-email" type="email" maxLength={254} value={contact.email} onChange={(e) => setContact({ ...contact, email: e.target.value })} />
+                </Field>
+              )}
             </CardContent>
           )}
         </Card>
