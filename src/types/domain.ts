@@ -41,13 +41,42 @@ export interface Gym {
   fiscal_point: string | null
   fiscal_activity: string | null
   fiscal_transaction_type: string
-  module_training: boolean
-  module_achievements: boolean
-  module_ranking: boolean
 }
 
-/** Módulos opcionales del portal del alumno (los activa el administrador). */
-export type GymModule = 'training' | 'achievements' | 'ranking'
+/** Funciones del sistema que el super admin puede prender o apagar por rol (app.features). */
+export type FeatureKey =
+  | 'dashboard'
+  | 'checkin'
+  | 'quick_sale'
+  | 'turnstile'
+  | 'collect'
+  | 'cash'
+  | 'payments'
+  | 'expenses'
+  | 'invoicing'
+  | 'students'
+  | 'memberships'
+  | 'trainers'
+  | 'leads'
+  | 'catalog'
+  | 'users'
+  | 'audit'
+  | 'settings'
+  | 'trainer_students'
+  | 'portal_membership'
+  | 'portal_receipts'
+  | 'portal_training'
+  | 'portal_achievements'
+  | 'portal_ranking'
+
+export interface FeatureRow {
+  key: FeatureKey
+  area: string
+  label: string
+  roles: AppRole[]
+  enabled: boolean
+  disabled_roles: AppRole[]
+}
 
 export interface AdminUserRow {
   user_id: string

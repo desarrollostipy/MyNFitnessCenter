@@ -2,6 +2,7 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, MessageCircle, Printer } from 'lucide-react'
 import { formatDate, formatDateTime, formatPYG } from '@/lib/format'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { useMyFeatures } from '@/features/platform/api'
 import { Monogram } from '@/components/Brand'
 import { Button } from '@/components/ui/button'
 import { ErrorState, LoadingState } from '@/components/states'
@@ -17,6 +18,7 @@ export function ReceiptPage() {
   const { gymId, hasRole } = useAuth()
   const isStaff = hasRole('admin', 'accountant', 'treasurer', 'cashier')
   const canOpenProfile = hasRole('admin', 'accountant', 'treasurer')
+  const features = useMyFeatures()
   const q = useReceipt(id, gymId)
 
   if (q.isLoading) return <LoadingState />
@@ -137,7 +139,11 @@ export function ReceiptPage() {
         </footer>
       </article>
 
-      {isStaff ? <InvoicePanel paymentId={p.id} paymentVoided={voided} /> : <StudentInvoiceNote paymentId={p.id} />}
+      {!isStaff ? (
+        <StudentInvoiceNote paymentId={p.id} />
+      ) : (
+        features.has('invoicing') && <InvoicePanel paymentId={p.id} paymentVoided={voided} />
+      )}
     </>
   )
 }

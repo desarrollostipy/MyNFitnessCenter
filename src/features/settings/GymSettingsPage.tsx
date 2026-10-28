@@ -10,7 +10,6 @@ import { isValidRuc } from '@/lib/fiscal'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
-import { CheckboxField } from '@/components/ui/form-controls'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ErrorState, LoadingState, PageHeader } from '@/components/states'
 import { useGym } from './api'
@@ -31,9 +30,6 @@ const schema = z.object({
   fiscal_point: digits(3, 'Punto de expedición'),
   fiscal_activity: optional(160),
   fiscal_transaction_type: z.string().trim().min(3, 'Indique el tipo de transacción').max(80),
-  module_training: z.boolean(),
-  module_achievements: z.boolean(),
-  module_ranking: z.boolean(),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -59,9 +55,6 @@ export function GymSettingsPage() {
         fiscal_point: g.fiscal_point ?? '',
         fiscal_activity: g.fiscal_activity ?? '',
         fiscal_transaction_type: g.fiscal_transaction_type,
-        module_training: g.module_training,
-        module_achievements: g.module_achievements,
-        module_ranking: g.module_ranking,
       })
     }
   }, [gym.data, form])
@@ -84,9 +77,6 @@ export function GymSettingsPage() {
           fiscal_point: nul(v.fiscal_point),
           fiscal_activity: nul(v.fiscal_activity),
           fiscal_transaction_type: v.fiscal_transaction_type,
-          module_training: v.module_training,
-          module_achievements: v.module_achievements,
-          module_ranking: v.module_ranking,
         })
         .eq('id', gymId)
       if (error) throw error
@@ -103,7 +93,7 @@ export function GymSettingsPage() {
 
   return (
     <>
-      <PageHeader title="Configuración" description="Datos de la empresa, facturación y portal del alumno." />
+      <PageHeader title="Configuración" description="Datos de la empresa y de facturación." />
       {gym.isLoading ? (
         <LoadingState />
       ) : gym.isError ? (
@@ -171,36 +161,6 @@ export function GymSettingsPage() {
               >
                 <Input id="fiscal_transaction_type" {...form.register('fiscal_transaction_type')} />
               </Field>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Portal del alumno</CardTitle>
-              <CardDescription>
-                Módulos opcionales que ven los alumnos en su portal. La asistencia sale del control de ingreso de recepción (y del
-                molinete cuando esté conectado).
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <CheckboxField
-                id="module_training"
-                label="Mis entrenamientos"
-                hint="Calendario de días entrenados, racha semanal y sesiones restantes de los planes por sesiones."
-                {...form.register('module_training')}
-              />
-              <CheckboxField
-                id="module_achievements"
-                label="Logros y compartir"
-                hint="Medallas por constancia y tarjetas para compartir en redes. Requiere «Mis entrenamientos»."
-                {...form.register('module_achievements')}
-              />
-              <CheckboxField
-                id="module_ranking"
-                label="Ranking del mes"
-                hint="Los alumnos que más entrenaron en el mes, con nombre corto (María G.). Cada alumno puede elegir no aparecer."
-                {...form.register('module_ranking')}
-              />
             </CardContent>
           </Card>
 

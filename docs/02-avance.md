@@ -326,3 +326,21 @@
   - nombre corto (María L.), empates con el mismo puesto, solo alumnos activos;
   - cada alumno puede salir del ranking (`set_ranking_opt_out()`);
   - si el módulo está apagado, la base lo rechaza.
+
+## Super admin y control de funciones (28/10/2026)
+- **Super admin** (migración `20261108000001`): es el proveedor de la plataforma (Víctor Peralta).
+  - Está en `app.platform_admins`, que no tiene acceso por API: se carga sólo por SQL.
+  - El admin del gimnasio no puede cambiar sus perfiles (trigger en `user_gym_roles`) ni generarle un PIN nuevo (Edge Function).
+- **Catálogo de funciones** (`app.features`): 23 funciones con los perfiles que normalmente las usan. Coincide con `FeatureKey` en `src/types/domain.ts`.
+- **Control por gimnasio** (`feature_settings`):
+  - cada función se puede apagar entera o quitar a perfiles puntuales;
+  - si no hay fila, la función queda como siempre;
+  - lo cambia sólo el super admin, con `set_feature()`, desde Plataforma → Control de funciones;
+  - los cambios quedan auditados.
+- **Dónde se aplica:**
+  - **Menú y rutas:** `my_features()` devuelve las funciones habilitadas para el usuario.
+  - **API:** `check_request()` es el `db_pre_request` de PostgREST. Rechaza las RPC y las escrituras de tablas (`app.feature_endpoints`) de funciones deshabilitadas. Las lecturas siguen por RLS.
+  - **Edge Function de usuarios:** consulta `feature_allowed('users')`.
+- **Portal del alumno:** los interruptores pasaron de `gyms.module_*` a `feature_settings`.
+  - Las columnas viejas quedan marcadas como obsoletas, para borrarlas en una migración futura.
+  - La pantalla Configuración ya no los muestra.

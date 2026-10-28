@@ -7,10 +7,11 @@ import { errorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
 import { computeProgress, WEEK_GOAL, type Achievement, type AchievementKind, type Progress } from '@/lib/progress'
 import { useAuth } from '@/features/auth/AuthProvider'
-import { useGym, useModules } from '@/features/settings/api'
+import { useGym } from '@/features/settings/api'
+import { useMyFeatures } from '@/features/platform/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components/states'
+import { ErrorState, LoadingState, PageHeader } from '@/components/states'
 import type { Student } from '@/types/domain'
 import { useMySessionPlans, useMyVisits, useRanking, useSetRankingOptOut } from './api'
 import { WithStudent } from './WithStudent'
@@ -49,9 +50,9 @@ function useShare(student: Student) {
 // ---------------------------------------------------------------------
 
 export function TrainingSummaryCard({ student }: { student: Student }) {
-  const modules = useModules()
+  const features = useMyFeatures()
   const { progress } = useProgress(student.id)
-  if (!modules.training || !progress) return null
+  if (!features.has('portal_training') || !progress) return null
   return (
     <Link to="/mi/entrenamientos" className="block">
       <Card className="flex items-center gap-4 p-4 hover:bg-white/10">
@@ -74,10 +75,10 @@ export function TrainingSummaryCard({ student }: { student: Student }) {
 
 export function RankingCard({ student }: { student: Student }) {
   const { gymId } = useAuth()
-  const modules = useModules()
-  const ranking = useRanking(gymId, modules.ranking)
+  const features = useMyFeatures()
+  const ranking = useRanking(gymId, features.has('portal_ranking'))
   const optOut = useSetRankingOptOut(gymId)
-  if (!modules.ranking) return null
+  if (!features.has('portal_ranking')) return null
 
   const toggle = () =>
     optOut.mutate(!student.ranking_opt_out, {
@@ -135,19 +136,13 @@ export function RankingCard({ student }: { student: Student }) {
 // Mis entrenamientos
 // ---------------------------------------------------------------------
 
+// La ruta ya exige la función "portal_training".
 export function MyTrainingPage() {
-  const gym = useGym()
-  const modules = useModules()
+  const features = useMyFeatures()
   return (
     <>
       <PageHeader title="Mis entrenamientos" description="Cada ingreso al gimnasio cuenta como un entrenamiento." />
-      {gym.isLoading ? (
-        <LoadingState />
-      ) : !modules.training ? (
-        <EmptyState title="Este módulo no está habilitado" description="Consultá en recepción." />
-      ) : (
-        <WithStudent>{(s) => <Training student={s} showAchievements={modules.achievements} />}</WithStudent>
-      )}
+      <WithStudent>{(s) => <Training student={s} showAchievements={features.has('portal_achievements')} />}</WithStudent>
     </>
   )
 }

@@ -94,6 +94,9 @@ Deno.serve(async (req) => {
     .eq("role", "admin")
     .maybeSingle();
   if (!adminRow) return json({ error: "No autorizado" }, 403);
+  // La función "Usuarios" la puede apagar el super admin.
+  const { data: allowed } = await asCaller.rpc("feature_allowed", { p_gym_id: gymId, p_feature: "users" });
+  if (allowed !== true) return json({ error: "Esta función está deshabilitada para su perfil" }, 403);
 
   const audit = (act: string, entityId: string, after: Record<string, unknown>) =>
     admin.from("audit_logs").insert({
@@ -117,6 +120,11 @@ Deno.serve(async (req) => {
     ]);
     if (!roleRow && !studentRow) return json({ error: "El usuario no pertenece a este gimnasio" }, 404);
     if (userId === caller.user.id) return json({ error: "Para su propia cuenta use Mi perfil → Cambiar contraseña" }, 400);
+    const [{ data: targetIsSuper }, { data: callerIsSuper }] = await Promise.all([
+      asCaller.rpc("is_platform_user", { p_user_id: userId }),
+      asCaller.rpc("is_platform_user", { p_user_id: caller.user.id }),
+    ]);
+    if (targetIsSuper && !callerIsSuper) return json({ error: "La cuenta del super admin no se puede modificar" }, 403);
 
     const { data: target, error: getErr } = await admin.auth.admin.getUserById(userId);
     if (getErr || !target.user) return json({ error: "Usuario inexistente" }, 404);

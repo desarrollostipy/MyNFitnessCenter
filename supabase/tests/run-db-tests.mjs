@@ -1148,17 +1148,95 @@ await test('ranking: el alumno puede salir; módulo apagado lo bloquea; anónimo
   const rows = (await db.query(`select * from public.attendance_ranking($1, '2025-01-15')`, [GYM])).rows
   assert(rows.length === 2 && !rows.some((r) => r.is_me), JSON.stringify(rows))
   await db.query(`select public.set_ranking_opt_out($1, false)`, [GYM])
-  await expectError(db.query(`update public.gyms set module_ranking = false where id = $1`, [GYM]).then((r) => { if (!r.affectedRows) throw Object.assign(new Error('x'), { code: 'RLS' }) }), 'RLS')
   await as(trainerUser)
   await expectError(db.query(`select public.set_ranking_opt_out($1, true)`, [GYM]), '42501')
-  await as(admin2)
-  await db.query(`update public.gyms set module_ranking = false where id = $1`, [GYM])
-  await as(studentUser)
-  await expectError(db.query(`select * from public.attendance_ranking($1)`, [GYM]), 'P0001')
-  await as(admin2)
-  await db.query(`update public.gyms set module_ranking = true where id = $1`, [GYM])
   await as(null)
   await expectError(db.query(`select * from public.attendance_ranking($1)`, [GYM]), '42501')
+})
+
+console.log('\nSuper admin y control de funciones')
+const superUser = await mkUser('super@myn.test', 'Super Admin')
+await db.query(`insert into app.platform_admins (user_id) values ($1)`, [superUser])
+await db.query(`insert into public.user_gym_roles (user_id, gym_id, role) values ($1, $2, 'admin')`, [superUser, GYM])
+
+// Simula el pedido que hace PostgREST antes de ejecutar la RPC o escritura.
+async function request(userId, path, method = 'POST') {
+  await as(userId)
+  await db.query(`select set_config('request.path', $1, false), set_config('request.method', $2, false)`, [path, method])
+  try {
+    await db.query(`select public.check_request()`)
+  } finally {
+    await db.exec(`reset request.path; reset request.method;`)
+  }
+}
+const setFeature = async (feature, enabled, disabled = []) => {
+  await as(superUser)
+  await db.query(`select public.set_feature($1, $2, $3, $4::public.app_role[])`, [GYM, feature, enabled, `{${disabled.join(',')}}`])
+}
+
+await test('sólo el super admin ve y cambia el control de funciones', async () => {
+  await as(admin2)
+  await expectError(db.query(`select * from public.feature_matrix($1)`, [GYM]), '42501')
+  await expectError(db.query(`select public.set_feature($1, 'quick_sale', false, '{}')`, [GYM]), '42501')
+  await expectError(db.query(`insert into public.feature_settings (gym_id, feature, enabled) values ($1, 'quick_sale', false)`, [GYM]), '42501')
+  await expectError(db.query(`select * from app.platform_admins`), '42501')
+  await as(superUser)
+  const m = (await db.query(`select * from public.feature_matrix($1)`, [GYM])).rows
+  assert(m.length >= 20 && m.every((r) => r.enabled), `matriz: ${m.length}`)
+  const mine = (await db.query(`select public.my_features($1) as r`, [GYM])).rows[0].r
+  assert(mine.superadmin === true && mine.features.includes('invoicing'), JSON.stringify(mine))
+})
+
+await test('quitar una función a un rol: la API la rechaza a ese rol y no a otros', async () => {
+  await setFeature('quick_sale', true, ['cashier', 'trainer'])
+  await expectError(request(cashier, '/rpc/quick_sale'), '42501')
+  await request(treasurer, '/rpc/quick_sale')
+  await request(superUser, '/rpc/quick_sale')
+  await as(cashier)
+  const f = (await db.query(`select public.my_features($1) as r`, [GYM])).rows[0].r
+  assert(!f.features.includes('quick_sale') && f.features.includes('checkin') && !f.superadmin, JSON.stringify(f))
+  await db.exec('reset role')
+  const row = (await db.query(`select disabled_roles from public.feature_settings where feature = 'quick_sale'`)).rows[0]
+  assert(String(row.disabled_roles) === '{cashier}', `guardó roles ajenos: ${row.disabled_roles}`)
+  await setFeature('quick_sale', true, [])
+  await request(cashier, '/rpc/quick_sale')
+})
+
+await test('apagar una función entera: sólo el super admin la sigue usando', async () => {
+  await setFeature('invoicing', false)
+  await expectError(request(admin2, '/rpc/register_invoice'), '42501')
+  await expectError(request(treasurer, '/rpc/invoice_draft'), '42501')
+  await request(superUser, '/rpc/register_invoice')
+  await setFeature('invoicing', true)
+  await request(treasurer, '/rpc/invoice_draft')
+})
+
+await test('escrituras directas por tabla se controlan; lecturas y otros pedidos no', async () => {
+  await setFeature('catalog', true, ['admin'])
+  await expectError(request(admin2, '/membership_plans', 'PATCH'), '42501')
+  await request(admin2, '/membership_plans', 'GET')
+  await request(admin2, '/rpc/submit_lead')
+  await request(null, '/rpc/submit_lead')
+  await setFeature('catalog', true, [])
+})
+
+await test('ranking apagado por el super admin: la base lo rechaza', async () => {
+  await setFeature('portal_ranking', false)
+  await as(studentUser)
+  await expectError(db.query(`select * from public.attendance_ranking($1)`, [GYM]), 'P0001')
+  await setFeature('portal_ranking', true)
+  await as(studentUser)
+  await db.query(`select * from public.attendance_ranking($1)`, [GYM])
+})
+
+await test('el admin del gimnasio no puede tocar los perfiles del super admin', async () => {
+  await as(admin2)
+  await expectError(db.query(`select public.admin_set_user_role($1, $2, 'admin', false)`, [GYM, superUser]), '42501')
+  await expectError(db.query(`select public.admin_set_user_role($1, $2, 'cashier', true)`, [GYM, superUser]), '42501')
+  assert((await db.query(`select public.is_platform_user($1) as r`, [superUser])).rows[0].r === true, 'no detecta super admin')
+  await as(superUser)
+  await db.query(`select public.admin_set_user_role($1, $2, 'cashier', true)`, [GYM, superUser])
+  await db.query(`select public.admin_set_user_role($1, $2, 'cashier', false)`, [GYM, superUser])
 })
 
 console.log('\nPrivilegios')
