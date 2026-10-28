@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
   });
   const admin = createClient(url, serviceKey);
 
-  let body: { gym_id?: string; email?: string; full_name?: string; role?: string };
+  let body: { gym_id?: string; email?: string; full_name?: string; role?: string; student_id?: string };
   try {
     body = await req.json();
   } catch {
@@ -59,22 +59,45 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!adminRow) return json({ error: "No autorizado" }, 403);
 
+  let userId: string | undefined;
+  let alreadyExisted = false;
   const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { full_name: fullName },
     redirectTo: siteUrl ? `${siteUrl}/restablecer` : undefined,
   });
-  if (inviteErr || !invited.user) {
+  if (invited?.user) {
+    userId = invited.user.id;
+  } else if (inviteErr && /already|registered|exists/i.test(inviteErr.message)) {
+    // La persona ya tiene cuenta: se le asigna el perfil sin reenviar invitación.
+    for (let page = 1; page <= 20 && !userId; page++) {
+      const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+      userId = data.users.find((u) => u.email?.toLowerCase() === email)?.id;
+      if (data.users.length < 1000) break;
+    }
+    alreadyExisted = !!userId;
+  }
+  if (!userId) {
     return json({ error: inviteErr?.message ?? "No se pudo invitar al usuario" }, 400);
+  }
+
+  // Acceso al portal de un alumno: vincula la ficha y asigna el perfil Alumno (RPC auditada).
+  if (body.student_id) {
+    const { error: linkErr } = await asCaller.rpc("link_student_user", {
+      p_student_id: body.student_id,
+      p_user_id: userId,
+    });
+    if (linkErr) return json({ error: linkErr.message }, 400);
+    return json({ user_id: userId, already_existed: alreadyExisted });
   }
 
   // Asigna el rol con la RPC auditada, en nombre del admin solicitante.
   const { error: setErr } = await asCaller.rpc("admin_set_user_role", {
     p_gym_id: gymId,
-    p_user_id: invited.user.id,
+    p_user_id: userId,
     p_role: role,
     p_enabled: true,
   });
   if (setErr) return json({ error: setErr.message }, 400);
 
-  return json({ user_id: invited.user.id });
+  return json({ user_id: userId, already_existed: alreadyExisted });
 });

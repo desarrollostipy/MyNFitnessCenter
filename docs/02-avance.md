@@ -7,7 +7,10 @@
 | 3 | Alumnos: alta, ficha, búsqueda, foto, baja lógica, asignación de entrenador | **Construido y probado localmente** — pendiente de verificar contra Supabase real | 29/10/2026 |
 | 4 | Membresías y cuotas + navegación móvil + identidad M&N | **Construido, probado y desplegado en Supabase** | 27/10/2026 |
 | 5 | Caja diaria, cobros y recibos internos | **Construido, probado y desplegado en Supabase** | 27/10/2026 |
-| 6–13 | Ver plan en `01-arquitectura-etapa1.md` §7 | Pendiente | — |
+| 6 | Egresos | **Desplegado** | 27/10/2026 |
+| 11 | Portal del alumno Mi M&N (membresía, cuotas, recibos, entrenador) | **Desplegado** (reservas desde el portal llegan con el Incremento 8) | 27/10/2026 |
+| 12 | Dashboard gerencial | **Desplegado** (se ampliará con reservas, ventas y honorarios) | 27/10/2026 |
+| 7, 8, 9, 10, 13 | Remuneración, reservas, liquidaciones, inventario, cierre | Pendiente | — |
 
 ---
 
@@ -171,3 +174,24 @@
 ### Pruebas (27/10/2026)
 - `npm run test:db` → 74/74 (13 nuevas): efectivo sin caja, una caja abierta, cobro parcial con asignación a la más antigua + recibo + movimiento, idempotencia, tope de saldo, asignación manual inválida, cuota con pagos no anulable, anulación sólo admin con reversión de saldo y caja, sin escritura directa, salida mayor al efectivo, cierre con diferencia, recibos correlativos, visibilidad por rol.
 - `check-demo.mjs`: demo idempotente y borrado sin rastros.
+
+---
+
+## Incrementos 6, 12 y 11 — Egresos, Dashboard y portal "Mi M&N"
+
+### Base de datos
+- `20261102000001_expenses.sql`: `expense_categories` (9 categorías base, gestionables por admin) y `expenses`. `register_expense` idempotente; en efectivo exige caja abierta y efectivo suficiente y registra la salida. `void_expense` sólo admin; el efectivo vuelve a la caja abierta.
+- `20261102000002_dashboard.sql`: `dashboard_summary(gym, desde, hasta)` (admin y contador): cobrado (hoy/período/anterior/por medio), egresos (período/anterior/por categoría), resultado, saldo pendiente, vencido, morosos, alumnos (activos, con membresía vigente, sin membresía, nuevos), membresías por vencer/canceladas, prospectos, entrenadores, serie diaria. Comparación con el período anterior de igual duración.
+- `20261102000003_student_portal.sql`: el alumno ve a sus entrenadores asignados; `link_student_user` (admin) vincula la cuenta a la ficha y asigna el perfil Alumno.
+- Edge Function `admin-invite-user`: acepta `student_id`; si el email ya tiene cuenta, la vincula en lugar de fallar.
+
+### Frontend
+- Egresos: período, total, desglose por categoría, alta (con proveedor y Nº de factura del proveedor), anulación, categorías.
+- Dashboard (inicio de admin y contador): tarjetas con variación vs. período anterior (sólo si hay datos comparables), gráfico de cobros por día con detalle al tocar, desgloses por medio de pago y categoría. Todo enlaza a la pantalla de detalle.
+- Mi M&N (alumno, pensado para celular): inicio con estado de membresía, vencimiento, saldo, próximo vencimiento y entrenador (WhatsApp); mi membresía (planes y cuotas); mis recibos.
+- Ficha del alumno: botón "Dar acceso al portal" (invita por email y vincula).
+
+### Pruebas (27/10/2026)
+- `npm run test:db` → 84/84 (10 nuevas). `check-demo.mjs` OK. `tsc`, `lint`, `build` sin errores.
+- `dashboard_summary` ejecutado en producción con la identidad del admin: cifras coherentes con los datos de demo.
+- Pendiente de verificar en el sitio publicado: invitación real de un alumno (requiere configurar la URL del sitio en Supabase).

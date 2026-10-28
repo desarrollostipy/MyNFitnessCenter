@@ -10,7 +10,8 @@ import { useReceipt } from './api'
 
 export function ReceiptPage() {
   const { id } = useParams()
-  const { gymId } = useAuth()
+  const { gymId, hasRole } = useAuth()
+  const isStaff = hasRole('admin', 'accountant', 'treasurer')
   const q = useReceipt(id, gymId)
 
   if (q.isLoading) return <LoadingState />
@@ -31,8 +32,11 @@ export function ReceiptPage() {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 print:hidden">
-        <Link to={`/admin/alumnos/${p.student_id}`} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" /> Ficha del alumno
+        <Link
+          to={isStaff ? `/admin/alumnos/${p.student_id}` : '/mi/pagos'}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" /> {isStaff ? 'Ficha del alumno' : 'Mis recibos'}
         </Link>
         <div className="flex gap-2">
           <Button variant="outline" asChild>

@@ -1,5 +1,9 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  CalendarClock,
+  Home,
+  LayoutDashboard,
+  Receipt,
   BadgeDollarSign,
   Landmark,
   Wallet,
@@ -36,11 +40,16 @@ export interface NavSection {
 // Sólo se listan módulos IMPLEMENTADOS. Cada incremento agrega sus entradas aquí.
 export const NAV_SECTIONS: NavSection[] = [
   {
+    title: 'Resumen',
+    items: [{ label: 'Dashboard', to: '/admin/dashboard', icon: LayoutDashboard, roles: ['admin', 'accountant'], mobile: 0.5, short: 'Inicio' }],
+  },
+  {
     title: 'Caja',
     items: [
       { label: 'Cobrar cuota', to: '/caja/cobrar', icon: Wallet, roles: ['admin', 'treasurer'], mobile: 0, short: 'Cobrar' },
       { label: 'Caja', to: '/caja', icon: Landmark, roles: ['admin', 'treasurer'], mobile: 4 },
       { label: 'Cobranzas', to: '/admin/cobros', icon: BadgeDollarSign, roles: ['admin', 'accountant', 'treasurer'] },
+      { label: 'Egresos', to: '/admin/egresos', icon: Receipt, roles: ['admin', 'accountant', 'treasurer'] },
     ],
   },
   {
@@ -49,6 +58,14 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Alumnos', to: '/admin/alumnos', icon: UsersRound, roles: ['admin', 'accountant', 'treasurer'], mobile: 1 },
       { label: 'Cuotas', to: '/admin/cuotas', icon: ReceiptText, roles: ['admin', 'accountant', 'treasurer'], mobile: 2 },
       { label: 'Entrenadores', to: '/admin/entrenadores', icon: GraduationCap, roles: ['admin'] },
+    ],
+  },
+  {
+    title: 'Mi M&N',
+    items: [
+      { label: 'Inicio', to: '/mi', icon: Home, roles: ['student'], mobile: 1 },
+      { label: 'Mi membresía', to: '/mi/membresia', icon: CalendarClock, roles: ['student'], mobile: 2, short: 'Membresía' },
+      { label: 'Mis recibos', to: '/mi/pagos', icon: ReceiptText, roles: ['student'], mobile: 3, short: 'Recibos' },
     ],
   },
   {
@@ -99,7 +116,9 @@ export function mobileItems(hasRole: (...r: AppRole[]) => boolean): NavItem[] {
 
 /** Primera pantalla útil según los roles del usuario. */
 export function homePathFor(hasRole: (...r: AppRole[]) => boolean): string {
-  if (hasRole('admin', 'treasurer', 'accountant')) return '/admin/alumnos'
+  if (hasRole('admin', 'accountant')) return '/admin/dashboard'
+  if (hasRole('treasurer')) return '/caja'
   if (hasRole('trainer')) return '/entrenador/alumnos'
+  if (hasRole('student')) return '/mi'
   return '/cuenta'
 }

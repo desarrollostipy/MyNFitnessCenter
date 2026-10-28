@@ -170,6 +170,26 @@ from public.subscription_periods p, public.subscriptions s
 where e.subscription_period_id = p.id and p.subscription_id = s.id
   and s.student_id = 'de000000-0000-4000-8000-000000000405';
 
+-- Egresos de ejemplo (por transferencia: no alteran la caja de efectivo) -------
+insert into public.expenses (id, gym_id, category_id, description, amount, method_id, paid_on, supplier, document_ref, idempotency_key)
+select ('de000000-0000-4000-8000-0000000008' || lpad(e.n::text, 2, '0'))::uuid, g.id,
+       (select id from public.expense_categories c where c.gym_id = g.id and c.name = e.cat),
+       e.descr, e.amount,
+       (select id from public.payment_methods m where m.gym_id = g.id and m.code = 'transfer'),
+       app.today() - e.days_ago, e.supplier, 'DEMO',
+       ('de000000-0000-4000-8000-0000000009' || lpad(e.n::text, 2, '0'))::uuid
+from public.gyms g
+cross join (values
+  (1, 'Alquiler', 'Alquiler del local (demo)', 1800000, 26, 'Inmobiliaria Demo'),
+  (2, 'Servicios (luz, agua, internet)', 'ANDE — energía eléctrica (demo)', 450000, 20, 'ANDE'),
+  (3, 'Servicios (luz, agua, internet)', 'Internet fibra (demo)', 200000, 18, 'Proveedor Demo'),
+  (4, 'Mantenimiento', 'Service de cintas y bicicletas (demo)', 300000, 12, 'Taller Demo'),
+  (5, 'Proveedores', 'Toallas y artículos de limpieza (demo)', 180000, 6, 'Distribuidora Demo'),
+  (6, 'Alquiler', 'Alquiler del local mes anterior (demo)', 1800000, 56, 'Inmobiliaria Demo')
+) as e(n, cat, descr, amount, days_ago, supplier)
+where g.id = '00000000-0000-0000-0000-000000000001'
+on conflict do nothing;
+
 -- Prospectos ------------------------------------------------------------
 insert into public.leads (id, gym_id, full_name, phone, email, interest, plan_id, service_id, preferred_date, message, status, internal_notes, contacted_at, created_at) values
   ('de000000-0000-4000-8000-000000000501', '00000000-0000-0000-0000-000000000001', 'Andrea Galeano', '0981777201', null, 'trial_class', null, 'de000000-0000-4000-8000-000000000203', app.today() + 2, 'Quiero probar antes de inscribirme.', 'new', null, null, now() - interval '3 hours'),

@@ -6,6 +6,7 @@ import { errorMessage } from '@/lib/errors'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useTrainers } from '@/features/trainers/api'
+import { useInviteUser } from '@/features/users/api'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/input'
 import { Select, Textarea } from '@/components/ui/form-controls'
@@ -119,7 +120,7 @@ export function StudentDetailPage() {
                 label="Emergencia"
                 value={[s.emergency_contact_name, s.emergency_contact_phone].filter(Boolean).join(' · ')}
               />
-              <Row label="Acceso al portal" value={s.user_id ? 'Vinculado' : 'Sin cuenta'} />
+              <Row label="Acceso al portal" value={s.user_id ? 'Activo (Mi M&N)' : isAdmin ? <PortalAccessButton student={s} /> : 'Sin cuenta'} />
             </dl>
             {s.notes && (
               <div className="mt-4 rounded-lg bg-muted p-3 text-sm">
@@ -139,6 +140,46 @@ export function StudentDetailPage() {
 
       {editing && <StudentFormDialog student={s} onClose={() => setEditing(false)} />}
       {statusOpen && <StatusDialog student={s} onClose={() => setStatusOpen(false)} />}
+    </>
+  )
+}
+
+/** Invita al alumno por email a "Mi M&N" y vincula su cuenta con esta ficha. */
+function PortalAccessButton({ student }: { student: Student }) {
+  const { gymId } = useAuth()
+  const invite = useInviteUser(gymId)
+  const [open, setOpen] = useState(false)
+
+  if (!student.email) return <span className="text-muted-foreground">Sin cuenta — cargue un email para invitarlo</span>
+
+  return (
+    <>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+        Dar acceso al portal
+      </Button>
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Dar acceso a Mi M&N"
+        description={`Se enviará una invitación a ${student.email} para crear su contraseña. Podrá ver su membresía, cuotas y recibos desde el celular.`}
+        confirmLabel="Enviar invitación"
+        loading={invite.isPending}
+        onConfirm={() =>
+          invite.mutate(
+            { email: student.email!, full_name: fullName(student), role: 'student', student_id: student.id },
+            {
+              onSuccess: (r) => {
+                toast.success(r.already_existed ? 'La cuenta ya existía: quedó vinculada a la ficha.' : `Invitación enviada a ${student.email}.`)
+                setOpen(false)
+              },
+              onError: (e) => {
+                toast.error(errorMessage(e))
+                setOpen(false)
+              },
+            },
+          )
+        }
+      />
     </>
   )
 }

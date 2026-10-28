@@ -38,7 +38,7 @@ export function useSetUserRole(gymId: string) {
 export function useInviteUser(gymId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (args: { email: string; full_name: string; role: AppRole }) => {
+    mutationFn: async (args: { email: string; full_name: string; role: AppRole; student_id?: string }) => {
       const { data, error } = await supabase.functions.invoke('admin-invite-user', {
         body: { gym_id: gymId, ...args },
       })
@@ -48,8 +48,11 @@ export function useInviteUser(gymId: string) {
         const body = ctx ? await ctx.json().catch(() => null) : null
         throw new Error(body?.error ?? error.message)
       }
-      return data as { user_id: string }
+      return data as { user_id: string; already_existed?: boolean }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-users', gymId] }),
+    onSuccess: (_d, args) => {
+      qc.invalidateQueries({ queryKey: ['admin-users', gymId] })
+      if (args.student_id) qc.invalidateQueries({ queryKey: ['student', args.student_id] })
+    },
   })
 }

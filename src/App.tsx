@@ -32,6 +32,9 @@ import { CashPage } from '@/features/cash/CashPage'
 import { CollectPage } from '@/features/cash/CollectPage'
 import { ReceiptPage } from '@/features/cash/ReceiptPage'
 import { PaymentsPage } from '@/features/cash/PaymentsPage'
+import { ExpensesPage } from '@/features/expenses/ExpensesPage'
+import { DashboardPage } from '@/features/dashboard/DashboardPage'
+import { MyHomePage, MyMembershipPage, MyPaymentsPage } from '@/features/portal/PortalPages'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -86,8 +89,13 @@ export default function App() {
               <Route path="/admin/alumnos/:id" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><StudentDetailPage /></RequireRole>} />
               <Route path="/caja" element={<RequireRole roles={['admin', 'treasurer']}><CashPage /></RequireRole>} />
               <Route path="/caja/cobrar" element={<RequireRole roles={['admin', 'treasurer']}><CollectPage /></RequireRole>} />
-              <Route path="/recibo/:id" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><ReceiptPage /></RequireRole>} />
+              <Route path="/recibo/:id" element={<RequireRole roles={['admin', 'accountant', 'treasurer', 'student']}><ReceiptPage /></RequireRole>} />
+              <Route path="/mi" element={<RequireRole roles={['student']}><MyHomePage /></RequireRole>} />
+              <Route path="/mi/membresia" element={<RequireRole roles={['student']}><MyMembershipPage /></RequireRole>} />
+              <Route path="/mi/pagos" element={<RequireRole roles={['student']}><MyPaymentsPage /></RequireRole>} />
               <Route path="/admin/cobros" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><PaymentsPage /></RequireRole>} />
+              <Route path="/admin/egresos" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><ExpensesPage /></RequireRole>} />
+              <Route path="/admin/dashboard" element={<RequireRole roles={['admin', 'accountant']}><DashboardPage /></RequireRole>} />
               <Route path="/admin/cuotas"element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><ChargesPage /></RequireRole>} />
               <Route path="/admin/entrenadores"element={<RequireRole roles={['admin']}><TrainersPage /></RequireRole>} />
               <Route path="/entrenador/alumnos" element={<RequireRole roles={['trainer']}><MyStudentsPage /></RequireRole>} />

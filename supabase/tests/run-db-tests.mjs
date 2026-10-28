@@ -775,6 +775,106 @@ await test('alumno ve sus pagos; entrenador no ve pagos ni caja', async () => {
   assert((await db.query(`select id from public.payments`)).rows.length === 0, 'entrenador ve pagos')
 })
 
+// ---------------------------------------------------------------------
+// Incremento 6: egresos · Dashboard
+// ---------------------------------------------------------------------
+console.log('\nIncremento 6 y dashboard')
+const catId = (await db.query(`select id from public.expense_categories where name = 'Alquiler'`)).rows[0].id
+const ekey = (n) => `33333333-3333-4333-8333-${String(n).padStart(12, '0')}`
+let session2, expId
+
+await test('categorías de egreso creadas para el gimnasio', async () => {
+  assert((await db.query(`select count(*)::int as n from public.expense_categories`)).rows[0].n === 9, 'faltan categorías')
+})
+
+await test('egreso por transferencia no toca la caja; idempotente', async () => {
+  await as(treasurer)
+  const id1 = (await db.query(`select public.register_expense($1, $2, 'Alquiler de octubre', 3000000, $3, app.today(), 'Inmobiliaria X', 'FAC 001-001-123', $4) as id`, [GYM, catId, transferId, ekey(1)])).rows[0].id
+  const id2 = (await db.query(`select public.register_expense($1, $2, 'Alquiler de octubre', 3000000, $3, app.today(), null, null, $4) as id`, [GYM, catId, transferId, ekey(1)])).rows[0].id
+  assert(id1 === id2, 'duplicó')
+  await db.exec('reset role')
+  assert((await db.query(`select count(*)::int as n from public.cash_movements where source = 'expense'`)).rows[0].n === 0, 'movió la caja')
+})
+
+await test('egreso en efectivo exige caja abierta y efectivo suficiente', async () => {
+  await as(treasurer)
+  await expectError(db.query(`select public.register_expense($1, $2, 'Limpieza', 50000, $3, app.today(), null, null, $4)`, [GYM, catId, cashId, ekey(2)]), 'P0001')
+  session2 = (await db.query(`select public.open_cash_session($1, 100000) as id`, [GYM])).rows[0].id
+  await expectError(db.query(`select public.register_expense($1, $2, 'Muy caro', 500000, $3, app.today(), null, null, $4)`, [GYM, catId, cashId, ekey(3)]), 'P0001')
+  expId = (await db.query(`select public.register_expense($1, $2, 'Artículos de limpieza', 60000, $3, app.today(), null, null, $4) as id`, [GYM, catId, cashId, ekey(4)])).rows[0].id
+  await db.exec('reset role')
+  assert(Number((await db.query(`select app.cash_expected($1) as e`, [session2])).rows[0].e) === 40000, 'saldo de caja')
+})
+
+await test('egreso con fecha futura o sin descripción rechazado', async () => {
+  await as(treasurer)
+  await expectError(db.query(`select public.register_expense($1, $2, 'Futuro', 1000, $3, app.today() + 1, null, null, $4)`, [GYM, catId, transferId, ekey(5)]), 'P0001')
+  await expectError(db.query(`select public.register_expense($1, $2, '', 1000, $3, app.today(), null, null, $4)`, [GYM, catId, transferId, ekey(6)]), 'P0001')
+})
+
+await test('anular egreso: sólo admin; el efectivo vuelve a la caja', async () => {
+  await as(treasurer)
+  await expectError(db.query(`select public.void_expense($1, 'Error')`, [expId]), '42501')
+  await as(admin2)
+  await db.query(`select public.void_expense($1, 'Cargado dos veces')`, [expId])
+  await db.exec('reset role')
+  assert(Number((await db.query(`select app.cash_expected($1) as e`, [session2])).rows[0].e) === 100000, 'no volvió el efectivo')
+})
+
+await test('nadie escribe egresos directamente; entrenador no los ve', async () => {
+  await as(admin2)
+  await expectError(db.query(`update public.expenses set amount = 1`), '42501')
+  await as(trainerUser)
+  assert((await db.query(`select id from public.expenses`)).rows.length === 0, 'entrenador ve egresos')
+})
+
+await test('dashboard: admin obtiene indicadores coherentes; tesorero y entrenador no', async () => {
+  await as(admin2)
+  const r = (await db.query(`select public.dashboard_summary($1, app.today() - 29, app.today()) as r`, [GYM])).rows[0].r
+  await db.exec('reset role')
+  const realPaid = Number((await db.query(`select coalesce(sum(amount),0) as s from public.payments where status = 'posted' and (paid_at at time zone 'America/Asuncion')::date between app.today() - 29 and app.today()`)).rows[0].s)
+  assert(Number(r.collections.period) === realPaid, `cobros ${r.collections.period} vs ${realPaid}`)
+  assert(Number(r.expenses.period) === 3000000, `egresos ${r.expenses.period}`)
+  assert(r.daily.length === 30, 'serie diaria')
+  assert(r.students.total === 2 && r.students.active === 1, JSON.stringify(r.students))
+  const overdue = Number((await db.query(`select coalesce(sum(total - paid_amount),0) as s from public.charges where status = 'overdue'`)).rows[0].s)
+  assert(Number(r.receivables.overdue) === overdue, 'vencido')
+  await as(treasurer)
+  await expectError(db.query(`select public.dashboard_summary($1, app.today() - 6, app.today())`, [GYM]), '42501')
+  await as(admin2)
+  await expectError(db.query(`select public.dashboard_summary($1, app.today(), app.today() - 1)`, [GYM]), 'P0001')
+})
+
+console.log('\nPortal del alumno')
+
+await test('alumno ve a su entrenador asignado y no a otros', async () => {
+  await as(studentUser)
+  const t = (await db.query(`select id from public.trainers`)).rows
+  assert(t.length === 1 && t[0].id === trainerId, `vio ${t.length}`)
+  assert((await db.query(`select id from public.trainer_student_assignments`)).rows.length >= 1, 'no ve su asignación')
+})
+
+await test('alumno ve su estado de membresía y sus recibos, no los de otros', async () => {
+  await as(studentUser)
+  const v = (await db.query(`select student_id from public.v_student_membership_status`)).rows
+  assert(v.length === 1 && v[0].student_id === studentA, 'vista ajena')
+  const alloc = (await db.query(`select count(*)::int as n from public.payment_allocations`)).rows[0].n
+  assert(alloc > 0, 'no ve el detalle de sus recibos')
+  assert((await db.query(`select id from public.gyms`)).rows.length === 1, 'no ve datos del gimnasio para el recibo')
+})
+
+await test('vincular cuenta del alumno: sólo admin', async () => {
+  const nu = await mkUserRaw('nuevo.alumno@myn.test')
+  await as(treasurer)
+  await expectError(db.query(`select public.link_student_user($1, $2)`, [studentB, nu]), '42501')
+  await as(admin2)
+  await db.query(`select public.link_student_user($1, $2)`, [studentB, nu])
+  await expectError(db.query(`select public.link_student_user($1, $2)`, [studentB, studentUser]), 'P0001')
+  await db.exec('reset role')
+  const r = (await db.query(`select role from public.user_gym_roles where user_id = $1`, [nu])).rows
+  assert(r.length === 1 && r[0].role === 'student', 'no asignó el perfil Alumno')
+})
+
 console.log('\nPrivilegios')
 
 await test('nadie borra físicamente alumnos, planes ni asignaciones', async () => {

@@ -16,7 +16,8 @@ create temp table demo_periods on commit drop as
 create temp table demo_payments on commit drop as
   select id from public.payments where student_id::text like 'de%';
 
-delete from public.cash_movements where source_id in (select id from demo_payments);
+delete from public.cash_movements where source_id in (select id from demo_payments) or source_id::text like 'de%';
+delete from public.expenses where id::text like 'de%';
 delete from public.payment_allocations where payment_id in (select id from demo_payments);
 delete from public.payments where id in (select id from demo_payments);
 -- La numeración de recibos sigue desde el último recibo real.
@@ -42,7 +43,7 @@ delete from public.services where id::text like 'de%';
 -- Registros de auditoría generados por la carga de demostración.
 delete from public.audit_logs
 where entity_id like 'de%'
-   or (entity in ('charges', 'subscriptions', 'subscription_periods', 'payments') and (after ->> 'student_id' like 'de%' or before ->> 'student_id' like 'de%'));
+   or (entity in ('charges', 'subscriptions', 'subscription_periods', 'payments', 'expenses') and (after ->> 'student_id' like 'de%' or before ->> 'student_id' like 'de%'));
 
 commit;
 

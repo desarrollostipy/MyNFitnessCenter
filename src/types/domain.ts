@@ -300,7 +300,42 @@ export interface Payment {
   payment_methods?: { name: string; affects_cash: boolean } | null
 }
 
-export const fullName = (p:{ first_name: string; last_name: string }) => `${p.first_name} ${p.last_name}`
+export interface ExpenseCategory {
+  id: string
+  name: string
+  is_active: boolean
+  sort_order: number
+}
+
+export interface Expense {
+  id: string
+  category_id: string
+  description: string
+  amount: number
+  method_id: string
+  paid_on: string
+  supplier: string | null
+  document_ref: string | null
+  status: 'posted' | 'voided'
+  void_reason: string | null
+  created_at: string
+  expense_categories?: { name: string } | null
+  payment_methods?: { name: string } | null
+}
+
+export interface DashboardSummary {
+  period: { from: string; to: string; prev_from: string; prev_to: string; today: string }
+  students: { total: number; active: number; inactive: number; new: number; new_prev: number; with_access: number; without_membership: number }
+  memberships: { expiring_7d: number; expired_period: number; cancelled_period: number }
+  receivables: { open: number; overdue: number; debtors: number }
+  collections: { today: number; period: number; prev: number; count: number; by_method: { name: string; amount: number }[] }
+  expenses: { period: number; prev: number; by_category: { name: string; amount: number }[] }
+  daily: { date: string; collections: number; expenses: number }[]
+  leads: { new: number; pending: number; converted: number }
+  trainers_active: number
+}
+
+export const fullName = (p: { first_name: string; last_name: string }) => `${p.first_name} ${p.last_name}`
 
 export interface AuditLog {
   id: number
