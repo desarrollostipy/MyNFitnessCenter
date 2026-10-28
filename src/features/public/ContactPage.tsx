@@ -117,7 +117,7 @@ export function ContactPage() {
                 key={i}
                 className={cn(
                   'flex cursor-pointer items-center justify-center rounded-lg border px-3 py-2.5 text-sm',
-                  interest === i ? 'border-graphite bg-graphite text-smoke' : 'border-border bg-card hover:bg-muted',
+                  interest === i ? 'border-transparent bg-selected text-selected-foreground' : 'border-border bg-card hover:bg-white/10',
                 )}
               >
                 <input type="radio" value={i} className="sr-only" {...register('interest')} />
@@ -181,7 +181,7 @@ export function ContactPage() {
         </div>
 
         <label className="flex items-start gap-3 text-sm">
-          <input type="checkbox" className="mt-0.5 size-4 accent-graphite" {...register('consent')} />
+          <input type="checkbox" className="mt-0.5 size-4 accent-brand" {...register('consent')} />
           <span>Autorizo a M&N Fitness a contactarme por teléfono, WhatsApp o email para responder esta solicitud.</span>
         </label>
         {errors.consent && (

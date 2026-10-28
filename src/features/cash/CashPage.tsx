@@ -100,7 +100,7 @@ function OpenSessionView({ session }: { session: CashSession }) {
       <p className="text-sm text-muted-foreground">Abierta el {formatDateTime(session.opened_at)}</p>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {cards.map((c) => (
-          <Card key={c.label} className={cn('p-4', c.strong && 'border-graphite')}>
+          <Card key={c.label} className={cn('p-4', c.strong && 'border-foreground/30')}>
             <p className="text-xs text-muted-foreground">{c.label}</p>
             <p className={cn('mt-1 text-lg font-semibold tabular-nums', c.tone)}>{formatPYG(c.value)}</p>
           </Card>

@@ -114,7 +114,7 @@ function CollectForm({ studentId, onChangeStudent }: { studentId: string; onChan
               {open.map((c) => (
                 <li key={c.id}>
                   <label className="flex cursor-pointer items-start gap-3 py-3">
-                    <input type="checkbox" className="mt-1 size-5 accent-graphite" checked={chosen.has(c.id)} onChange={() => toggle(c.id)} />
+                    <input type="checkbox" className="mt-1 size-5 accent-brand" checked={chosen.has(c.id)} onChange={() => toggle(c.id)} />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm">{c.concept}</span>
                       <span className="text-xs text-muted-foreground">
@@ -154,7 +154,7 @@ function CollectForm({ studentId, onChangeStudent }: { studentId: string; onChan
                     onClick={() => setMethodId(m.id)}
                     className={cn(
                       'rounded-lg border px-3 py-2.5 text-sm',
-                      method?.id === m.id ? 'border-graphite bg-graphite text-smoke' : 'border-border bg-card hover:bg-muted',
+                      method?.id === m.id ? 'border-transparent bg-selected text-selected-foreground' : 'border-border bg-card hover:bg-white/10',
                     )}
                   >
                     {m.name}

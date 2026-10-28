@@ -20,9 +20,9 @@ export function Dialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-graphite/50" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />
         {/* Celular: hoja inferior a todo el ancho. Desde sm: ventana centrada. */}
-        <DialogPrimitive.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[92dvh] overflow-y-auto rounded-t-2xl bg-card p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-xl focus:outline-none sm:inset-x-4 sm:bottom-auto sm:top-[10vh] sm:max-w-lg sm:rounded-lg sm:p-6">
+        <DialogPrimitive.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[92dvh] overflow-y-auto rounded-t-[2rem] border border-border bg-popover p-5 backdrop-blur-2xl pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-xl focus:outline-none sm:inset-x-4 sm:bottom-auto sm:top-[10vh] sm:max-w-lg sm:rounded-3xl sm:p-6">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div>
               <DialogPrimitive.Title className="text-lg font-semibold">{title}</DialogPrimitive.Title>
@@ -32,7 +32,7 @@ export function Dialog({
                 </DialogPrimitive.Description>
               )}
             </div>
-            <DialogPrimitive.Close className="rounded-md p-1 hover:bg-muted" aria-label="Cerrar">
+            <DialogPrimitive.Close className="rounded-full p-1.5 hover:bg-white/10" aria-label="Cerrar">
               <X className="size-4" />
             </DialogPrimitive.Close>
           </div>
@@ -66,8 +66,8 @@ export function ConfirmDialog({
   return (
     <AlertPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <AlertPrimitive.Portal>
-        <AlertPrimitive.Overlay className="fixed inset-0 z-40 bg-graphite/50" />
-        <AlertPrimitive.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto rounded-t-2xl bg-card p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-xl sm:inset-x-4 sm:bottom-auto sm:top-[20vh] sm:max-w-md sm:rounded-lg sm:p-6">
+        <AlertPrimitive.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />
+        <AlertPrimitive.Content className="fixed inset-x-0 bottom-0 z-50 mx-auto rounded-t-[2rem] border border-border bg-popover p-5 backdrop-blur-2xl pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-xl sm:inset-x-4 sm:bottom-auto sm:top-[20vh] sm:max-w-md sm:rounded-3xl sm:p-6">
           <AlertPrimitive.Title className="text-lg font-semibold">{title}</AlertPrimitive.Title>
           <AlertPrimitive.Description className="mt-2 text-sm text-muted-foreground">
             {description}

@@ -3,10 +3,10 @@ import { cn } from '@/lib/utils'
 import { formatThousands } from '@/lib/format'
 
 const controlBase =
-  'w-full rounded-lg border border-border bg-card px-3 text-base sm:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-graphite/30 disabled:opacity-50 aria-[invalid=true]:border-destructive'
+  'w-full rounded-xl border border-border bg-white/5 px-3.5 text-base sm:text-sm focus-visible:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 disabled:opacity-50 aria-[invalid=true]:border-destructive'
 
 export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
-  ({ className, ...props }, ref) => <select ref={ref} className={cn(controlBase, 'h-10', className)} {...props} />,
+  ({ className, ...props }, ref) => <select ref={ref} className={cn(controlBase, 'h-11', className)} {...props} />,
 )
 Select.displayName = 'Select'
 
@@ -23,7 +23,7 @@ export const CheckboxField = React.forwardRef<
   React.InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string }
 >(({ label, hint, id, className, ...props }, ref) => (
   <label htmlFor={id} className={cn('flex cursor-pointer items-start gap-3', className)}>
-    <input ref={ref} id={id} type="checkbox" className="mt-0.5 size-4 accent-graphite" {...props} />
+    <input ref={ref} id={id} type="checkbox" className="mt-0.5 size-4 accent-brand" {...props} />
     <span>
       <span className="text-sm font-medium">{label}</span>
       {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}

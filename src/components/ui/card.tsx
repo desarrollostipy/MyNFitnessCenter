@@ -2,7 +2,7 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('rounded-lg border border-border bg-card shadow-sm', className)} {...props} />
+  return <div className={cn('glass rounded-3xl', className)} {...props} />
 }
 
 export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
@@ -29,13 +29,13 @@ export function Badge({
   const tones = {
     neutral: 'bg-muted text-muted-foreground',
     // "accent" marca estados positivos (activo, pagado): verde, para no confundir con el rojo de marca.
-    accent: 'bg-success/10 text-success',
+    accent: 'bg-success/15 text-success',
     dark: 'bg-primary text-primary-foreground',
-    danger: 'bg-destructive/10 text-destructive',
+    danger: 'bg-destructive/15 text-destructive',
   }
   return (
     <span
-      className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium', tones[tone], className)}
+      className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', tones[tone], className)}
       {...props}
     />
   )

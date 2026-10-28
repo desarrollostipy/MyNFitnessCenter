@@ -229,3 +229,10 @@
 - Datos relevados: lector por huella (se evalúa sumar tags con la marca M&N), conectado por cable o wifi, hoy se habilita por CI desde una app (nombre a confirmar). Falta: modelo exacto del lector y regla de días de gracia.
 - Excepción acordada con el gimnasio a la regla "no mostrar módulos no implementados": `/admin/molinete` (sólo admin) es una **vista previa** rotulada como tal, con controles deshabilitados y filas marcadas "Ejemplo". No consulta ni escribe datos.
 - Preparado en la base: `check_ins.source = 'device'` para los ingresos que lleguen del equipo.
+
+## Rediseño visual — tema oscuro "glass" (28/10/2026)
+- Elegido por el gimnasio a partir de la maqueta `docs/diseno/propuesta-glass.html` (versión oscura).
+- Tokens en `src/index.css`: fondo negro con luces rojas de marca, paneles translúcidos (`glass`: desenfoque + borde sutil), bordes muy redondeados, botones tipo cápsula, opción elegida en cápsula clara (`bg-selected`).
+- Menú lateral flotante de vidrio; en el celular, barra inferior flotante tipo cápsula.
+- Sin desenfoque (equipos sin soporte o "reducir transparencia"): paneles sólidos.
+- Recibos: clase `paper` (siempre blanco en pantalla e impresión).

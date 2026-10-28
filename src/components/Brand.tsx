@@ -16,9 +16,9 @@ export function Monogram({ className }: { className?: string }) {
 export function Brand({ dark = false, className }: { dark?: boolean; className?: string }) {
   return (
     <span className={cn('inline-flex items-center gap-2 leading-none', className)} aria-label="M&N Fitness">
-      <Monogram className={cn('h-[1.6em] w-auto', dark ? 'text-smoke' : 'text-graphite')} />
+      <Monogram className={cn('h-[1.6em] w-auto', dark ? 'text-smoke' : 'text-foreground')} />
       <span className="flex flex-col">
-        <span className={cn('font-bold tracking-wide', dark ? 'text-smoke' : 'text-graphite')}>
+        <span className={cn('font-bold tracking-wide', dark ? 'text-smoke' : 'text-foreground')}>
           M<span className="text-brand">&amp;</span>N
         </span>
         <span className={cn('text-[0.55em] font-semibold uppercase tracking-[0.25em]', dark ? 'text-smoke/70' : 'text-muted-foreground')}>

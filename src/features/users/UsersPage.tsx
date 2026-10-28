@@ -106,7 +106,7 @@ export function UsersPage() {
                     <label key={r} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
                       <input
                         type="checkbox"
-                        className="size-4 accent-graphite"
+                        className="size-4 accent-brand"
                         checked={u.roles.includes(r)}
                         disabled={setRole.isPending && setRole.variables?.userId === u.user_id && setRole.variables?.role === r}
                         onChange={(e) => onToggle(u, r, e.target.checked)}
@@ -148,7 +148,7 @@ export function UsersPage() {
                         <td key={r} className="px-2 py-3 text-center">
                           <input
                             type="checkbox"
-                            className="size-4 accent-graphite"
+                            className="size-4 accent-brand"
                             checked={checked}
                             disabled={busy}
                             onChange={(e) => onToggle(u, r, e.target.checked)}

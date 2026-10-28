@@ -205,11 +205,11 @@ function SaleForm({
                     onClick={() => setPlanId(p.id)}
                     className={cn(
                       'rounded-lg border p-3 text-left',
-                      planId === p.id ? 'border-graphite bg-graphite text-smoke' : 'border-border bg-card hover:bg-muted',
+                      planId === p.id ? 'border-transparent bg-selected text-selected-foreground' : 'border-border bg-card hover:bg-white/10',
                     )}
                   >
                     <span className="block font-medium">{p.name}</span>
-                    <span className={cn('text-xs', planId === p.id ? 'text-smoke/80' : 'text-muted-foreground')}>
+                    <span className={cn('text-xs', planId === p.id ? 'text-selected-foreground/70' : 'text-muted-foreground')}>
                       {PLAN_TYPE_LABELS[p.plan_type]} · {planDurationLabel(p)}
                     </span>
                     <span className="mt-1 block font-semibold tabular-nums">{formatPYG(p.price)}</span>
@@ -239,7 +239,7 @@ function SaleForm({
                     onClick={() => setMethodId(m.id)}
                     className={cn(
                       'rounded-lg border px-3 py-2.5 text-sm',
-                      method?.id === m.id ? 'border-graphite bg-graphite text-smoke' : 'border-border bg-card hover:bg-muted',
+                      method?.id === m.id ? 'border-transparent bg-selected text-selected-foreground' : 'border-border bg-card hover:bg-white/10',
                     )}
                   >
                     {m.name}

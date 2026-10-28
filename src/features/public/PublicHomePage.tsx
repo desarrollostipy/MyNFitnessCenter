@@ -9,7 +9,7 @@ export function PublicHomePage() {
 
   return (
     <>
-      <section className="bg-graphite text-smoke">
+      <section className="text-smoke">
         <div className="mx-auto max-w-6xl px-4 pb-24 pt-16 sm:px-6 sm:pt-24">
           <p className="mb-4 text-sm font-medium uppercase tracking-widest text-brand">Itauguá · Paraguay</p>
           <h1 className="max-w-2xl text-4xl font-black uppercase leading-none tracking-tight sm:text-7xl">
@@ -24,7 +24,7 @@ export function PublicHomePage() {
             <Button asChild variant="accent" size="lg">
               <Link to="/contacto?tipo=clase_prueba">Reservar clase de prueba</Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="border-white/20 bg-transparent text-smoke hover:bg-white/10">
+            <Button asChild variant="outline" size="lg" className="text-smoke">
               <Link to="/planes">Ver planes</Link>
             </Button>
           </div>

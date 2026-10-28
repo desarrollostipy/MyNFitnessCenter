@@ -65,7 +65,7 @@ export function PaymentsPage() {
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Card className="border-graphite p-4">
+        <Card className="border-foreground/30 p-4">
           <p className="text-xs text-muted-foreground">Total cobrado</p>
           <p className="mt-1 text-lg font-semibold tabular-nums">{formatPYG(total)}</p>
           <p className="text-xs text-muted-foreground">{posted.length} cobros</p>

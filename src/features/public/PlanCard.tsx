@@ -22,13 +22,13 @@ export function PlanCard({ plan, showConditions = false }: { plan: PublicPlan; s
       <ul className="mt-5 flex-1 space-y-2 text-sm">
         {plan.included_sessions > 0 && (
           <li className="flex gap-2">
-            <Check className="mt-0.5 size-4 shrink-0 text-graphite" />
+            <Check className="mt-0.5 size-4 shrink-0 text-brand" />
             {plan.included_sessions} {plan.included_sessions === 1 ? 'sesión incluida' : 'sesiones incluidas'}
           </li>
         )}
         {plan.benefits.map((b) => (
           <li key={b} className="flex gap-2">
-            <Check className="mt-0.5 size-4 shrink-0 text-graphite" />
+            <Check className="mt-0.5 size-4 shrink-0 text-brand" />
             {b}
           </li>
         ))}

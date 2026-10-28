@@ -50,7 +50,7 @@ export function ReceiptPage() {
         </div>
       </div>
 
-      <article className="relative mx-auto max-w-md overflow-hidden rounded-lg border border-border bg-card p-6 shadow-sm print:max-w-none print:border-0 print:shadow-none">
+      <article className="paper relative mx-auto max-w-md overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-2xl print:max-w-none print:rounded-none print:border-0 print:shadow-none">
         {voided && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
             <span className="-rotate-12 rounded-lg border-4 border-destructive px-6 py-2 text-4xl font-black uppercase text-destructive/70">Anulado</span>

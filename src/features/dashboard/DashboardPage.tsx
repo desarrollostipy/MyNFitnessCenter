@@ -41,7 +41,7 @@ function Delta({ current, previous, invert = false }: { current: number; previou
 
 function Kpi({ label, value, sub, to, emphasis }: { label: string; value: ReactNode; sub?: ReactNode; to?: string; emphasis?: boolean }) {
   const body = (
-    <Card className={cn('h-full p-4 transition-colors', to && 'hover:border-graphite/40', emphasis && 'border-graphite')}>
+    <Card className={cn('h-full p-4 transition-colors', to && 'hover:border-foreground/30', emphasis && 'border-brand/50')}>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-xl font-semibold tabular-nums sm:text-2xl">{value}</p>
       {sub && <div className="mt-1">{sub}</div>}
@@ -88,7 +88,7 @@ function DailyChart({ data }: { data: DashboardSummary['daily'] }) {
               aria-label={`${formatDate(d.date)}: ${formatPYG(d.collections)}`}
             >
               <span
-                className={cn('w-full rounded-t-[4px] bg-graphite transition-opacity', active !== null && active !== i && 'opacity-40')}
+                className={cn('w-full rounded-t-md bg-foreground/35 transition-opacity', active !== null && active !== i && 'opacity-40')}
                 style={{ height: `${(Number(d.collections) / max) * 100}%`, minHeight: Number(d.collections) > 0 ? 2 : 0 }}
               />
             </button>

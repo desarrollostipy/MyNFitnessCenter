@@ -54,7 +54,7 @@ function Home({ student }: { student: Student }) {
         <h1 className="text-2xl font-bold tracking-tight">{student.first_name}</h1>
       </div>
 
-      <Card className={cn('overflow-hidden border-0 text-smoke', hasAccess ? 'bg-graphite' : 'bg-brand')}>
+      <Card className={cn('overflow-hidden text-smoke', hasAccess ? 'bg-white/10' : 'border-brand/40 bg-brand/80')}>
         <CardContent className="p-5">
           <p className="text-xs uppercase tracking-widest text-smoke/70">Mi membresía</p>
           <p className="mt-1 text-2xl font-bold">{st?.paused_today ? 'En pausa' : hasAccess ? 'Activa' : 'Sin membresía vigente'}</p>

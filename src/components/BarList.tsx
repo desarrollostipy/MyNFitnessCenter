@@ -16,7 +16,7 @@ export function BarList({ items, empty = 'Sin datos en el período' }: { items: 
             </span>
           </div>
           <div className="h-2 rounded-full bg-muted">
-            <div className="h-2 rounded-full bg-graphite" style={{ width: `${(Number(i.amount) / max) * 100}%` }} />
+            <div className="h-2 rounded-full bg-foreground/70" style={{ width: `${(Number(i.amount) / max) * 100}%` }} />
           </div>
         </li>
       ))}

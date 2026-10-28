@@ -12,14 +12,14 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const sections = visibleSections(hasRole)
 
   return (
-    <div className="flex h-full flex-col bg-graphite text-smoke">
+    <div className="glass flex h-full flex-col rounded-3xl text-smoke">
       <div className="px-5 py-5">
         <Brand dark />
       </div>
       <nav className="flex-1 space-y-6 overflow-y-auto px-3" aria-label="Menú principal">
         {sections.map((section) => (
           <div key={section.title}>
-            <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-neutral">
+            <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral">
               {section.title}
             </p>
             <ul className="space-y-0.5">
@@ -30,8 +30,8 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     onClick={onNavigate}
                     className={({ isActive }) =>
                       cn(
-                        'flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors',
-                        isActive ? 'bg-white/10 text-brand' : 'text-smoke/80 hover:bg-white/5 hover:text-smoke',
+                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors',
+                        isActive ? 'bg-white/12 font-semibold text-smoke [&_svg]:text-brand' : 'text-smoke/65 hover:bg-white/5 hover:text-smoke',
                       )
                     }
                   >
@@ -65,18 +65,18 @@ export function AppShell() {
 
   return (
     <div className="flex h-full">
-      <aside className="hidden w-64 shrink-0 lg:block print:hidden">
+      <aside className="hidden w-64 shrink-0 p-3 pr-0 lg:block print:hidden">
         <Sidebar />
       </aside>
 
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-graphite/50" onClick={() => setOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-72 shadow-xl">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 w-72 p-2 [&>div]:bg-popover">
             <Sidebar onNavigate={() => setOpen(false)} />
           </aside>
           <button
-            className="absolute right-4 top-4 rounded-md bg-card p-2"
+            className="glass absolute right-4 top-4 rounded-full p-2"
             onClick={() => setOpen(false)}
             aria-label="Cerrar menú"
           >
@@ -86,10 +86,10 @@ export function AppShell() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-4 pt-[env(safe-area-inset-top)] lg:hidden print:hidden">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/50 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:hidden print:hidden">
           <Brand />
         </header>
-        <main className="flex-1 overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0 print:overflow-visible print:pb-0">
+        <main className="flex-1 overflow-y-auto pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-0 print:overflow-visible print:pb-0">
           <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
             <Outlet />
           </div>
@@ -105,22 +105,22 @@ export function AppShell() {
 function BottomNav({ onMore }: { onMore: () => void }) {
   const { hasRole } = useAuth()
   const items = mobileItems(hasRole)
-  const tab = 'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium'
+  const tab = 'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full py-1.5 text-[11px] font-medium transition-colors'
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden"
+      className="glass fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 flex rounded-full bg-popover/70 p-1.5 lg:hidden print:hidden"
       aria-label="Accesos rápidos"
     >
       {items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
-          className={({ isActive }) => cn(tab, isActive ? 'text-graphite' : 'text-muted-foreground')}
+          className={({ isActive }) => cn(tab, isActive ? 'bg-white/12 text-foreground' : 'text-muted-foreground')}
         >
           {({ isActive }) => (
             <>
-              <span className={cn('rounded-full px-4 py-1', isActive && 'bg-accent text-accent-foreground')}>
+              <span className={cn('rounded-full px-3 py-0.5', isActive && 'text-brand')}>
                 <item.icon className="size-5" />
               </span>
               <span className="truncate">{item.short ?? item.label}</span>
@@ -129,7 +129,7 @@ function BottomNav({ onMore }: { onMore: () => void }) {
         </NavLink>
       ))}
       <button onClick={onMore} className={cn(tab, 'text-muted-foreground')} aria-label="Más opciones">
-        <span className="px-4 py-1">
+        <span className="px-3 py-0.5">
           <Menu className="size-5" />
         </span>
         Más
