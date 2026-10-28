@@ -11,6 +11,7 @@ import {
   CreditCard,
   DoorOpen,
   Dumbbell,
+  Flame,
   ShoppingBag,
   GraduationCap,
   History,
@@ -22,7 +23,7 @@ import {
   Users,
   UsersRound,
 } from 'lucide-react'
-import { FRONT_DESK_ROLES, type AppRole } from '@/types/domain'
+import { FRONT_DESK_ROLES, type AppRole, type GymModule } from '@/types/domain'
 
 export interface NavItem {
   label: string
@@ -33,7 +34,11 @@ export interface NavItem {
   mobile?: number
   /** Etiqueta corta para la barra inferior. */
   short?: string
+  /** Módulo opcional del que depende (si está apagado, no se muestra). */
+  module?: GymModule
 }
+
+type Modules = Record<GymModule, boolean>
 
 export interface NavSection {
   title: string
@@ -76,6 +81,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'Mi M&N',
     items: [
       { label: 'Inicio', to: '/mi', icon: Home, roles: ['student'], mobile: 1 },
+      { label: 'Mis entrenamientos', to: '/mi/entrenamientos', icon: Flame, roles: ['student'], mobile: 1.5, short: 'Entrenos', module: 'training' },
       { label: 'Mi membresía', to: '/mi/membresia', icon: CalendarClock, roles: ['student'], mobile: 2, short: 'Membresía' },
       { label: 'Mis recibos', to: '/mi/pagos', icon: ReceiptText, roles: ['student'], mobile: 3, short: 'Recibos' },
     ],
@@ -110,16 +116,16 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ]
 
-export function visibleSections(hasRole: (...r: AppRole[]) => boolean): NavSection[] {
+export function visibleSections(hasRole: (...r: AppRole[]) => boolean, modules: Modules): NavSection[] {
   return NAV_SECTIONS.map((s) => ({
     ...s,
-    items: s.items.filter((i) => i.roles === 'any' || hasRole(...i.roles)),
+    items: s.items.filter((i) => (i.roles === 'any' || hasRole(...i.roles)) && (!i.module || modules[i.module])),
   })).filter((s) => s.items.length > 0)
 }
 
 /** Accesos de la barra inferior en el celular (máximo 4; el resto va en "Más"). */
-export function mobileItems(hasRole: (...r: AppRole[]) => boolean): NavItem[] {
-  return visibleSections(hasRole)
+export function mobileItems(hasRole: (...r: AppRole[]) => boolean, modules: Modules): NavItem[] {
+  return visibleSections(hasRole, modules)
     .flatMap((s) => s.items)
     .filter((i) => i.mobile !== undefined)
     .sort((a, b) => a.mobile! - b.mobile!)

@@ -1120,6 +1120,47 @@ await test('cajero: no anula, no hace movimientos manuales ni egresos, no ve his
   assert(sessions.every((s) => s.status === 'open' || s.opened_by === cashier || s.closed_by === cashier), 've cajas ajenas cerradas')
 })
 
+console.log('\nPortal: ranking de asistencia')
+
+const visit = (student, day) =>
+  db.query(`insert into public.check_ins (gym_id, student_id, business_date, access_ok) values ($1, $2, $3, true)`, [GYM, student, day])
+
+await test('ranking del mes: puestos con empate, nombre corto y fila propia', async () => {
+  const [s1, s2] = (await db.query(`select id from public.students where id <> $1 and status = 'active' order by created_at limit 2`, [studentA])).rows.map((r) => r.id)
+  const inactive = (await db.query(`select id from public.students where status <> 'active' limit 1`)).rows[0]?.id
+  for (const d of ['2025-01-02', '2025-01-03', '2025-01-06']) await visit(s1, d)
+  for (const d of ['2025-01-02', '2025-01-03', '2025-01-07']) await visit(s2, d)
+  if (inactive) for (const d of ['2025-01-02', '2025-01-03', '2025-01-04', '2025-01-05']) await visit(inactive, d)
+  await visit(studentA, '2025-01-08')
+  await visit(studentA, '2025-02-01') // otro mes: no cuenta
+  await as(studentUser)
+  const all = (await db.query(`select * from public.attendance_ranking($1, '2025-01-15')`, [GYM])).rows
+  assert(all.length === 3 && all[0].rank_position === 1 && all[1].rank_position === 1 && all[2].rank_position === 3, JSON.stringify(all))
+  assert(all.every((r) => /^\S+ \S\.$/.test(r.student_label)) && all[0].visits === 3, JSON.stringify(all))
+  assert(all[2].is_me && all[2].student_label === 'María L.' && all[2].visits === 1, JSON.stringify(all[2]))
+  const top1 = (await db.query(`select * from public.attendance_ranking($1, '2025-01-15', 1)`, [GYM])).rows
+  assert(top1.length === 3 && top1.filter((r) => r.is_me).length === 1, 'sin fila propia fuera del top')
+})
+
+await test('ranking: el alumno puede salir; módulo apagado lo bloquea; anónimo no', async () => {
+  await as(studentUser)
+  await db.query(`select public.set_ranking_opt_out($1, true)`, [GYM])
+  const rows = (await db.query(`select * from public.attendance_ranking($1, '2025-01-15')`, [GYM])).rows
+  assert(rows.length === 2 && !rows.some((r) => r.is_me), JSON.stringify(rows))
+  await db.query(`select public.set_ranking_opt_out($1, false)`, [GYM])
+  await expectError(db.query(`update public.gyms set module_ranking = false where id = $1`, [GYM]).then((r) => { if (!r.affectedRows) throw Object.assign(new Error('x'), { code: 'RLS' }) }), 'RLS')
+  await as(trainerUser)
+  await expectError(db.query(`select public.set_ranking_opt_out($1, true)`, [GYM]), '42501')
+  await as(admin2)
+  await db.query(`update public.gyms set module_ranking = false where id = $1`, [GYM])
+  await as(studentUser)
+  await expectError(db.query(`select * from public.attendance_ranking($1)`, [GYM]), 'P0001')
+  await as(admin2)
+  await db.query(`update public.gyms set module_ranking = true where id = $1`, [GYM])
+  await as(null)
+  await expectError(db.query(`select * from public.attendance_ranking($1)`, [GYM]), '42501')
+})
+
 console.log('\nPrivilegios')
 
 await test('nadie borra físicamente alumnos, planes ni asignaciones', async () => {

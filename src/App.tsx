@@ -36,6 +36,7 @@ import { PaymentsPage } from '@/features/cash/PaymentsPage'
 import { ExpensesPage } from '@/features/expenses/ExpensesPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { MyHomePage, MyMembershipPage, MyPaymentsPage } from '@/features/portal/PortalPages'
+import { MyTrainingPage } from '@/features/portal/TrainingPages'
 import { CheckInPage } from '@/features/reception/CheckInPage'
 import { QuickSalePage } from '@/features/reception/QuickSalePage'
 import { TurnstilePreviewPage } from '@/features/turnstile/TurnstilePreviewPage'
@@ -100,7 +101,8 @@ export default function App() {
               <Route path="/ingreso" element={<RequireRole roles={FRONT_DESK_ROLES}><CheckInPage /></RequireRole>} />
               <Route path="/recibo/:id" element={<RequireRole roles={['admin', 'accountant', 'treasurer', 'cashier', 'student']}><ReceiptPage /></RequireRole>} />
               <Route path="/mi" element={<RequireRole roles={['student']}><MyHomePage /></RequireRole>} />
-              <Route path="/mi/membresia" element={<RequireRole roles={['student']}><MyMembershipPage /></RequireRole>} />
+              <Route path="/mi/entrenamientos" element={<RequireRole roles={['student']}><MyTrainingPage /></RequireRole>} />
+              <Route path="/mi/membresia"element={<RequireRole roles={['student']}><MyMembershipPage /></RequireRole>} />
               <Route path="/mi/pagos" element={<RequireRole roles={['student']}><MyPaymentsPage /></RequireRole>} />
               <Route path="/admin/cobros" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><PaymentsPage /></RequireRole>} />
               <Route path="/admin/egresos" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><ExpensesPage /></RequireRole>} />

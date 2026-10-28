@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { LogOut, Menu, X } from 'lucide-react'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { mobileItems, visibleSections } from '@/app/navigation'
+import { useModules } from '@/features/settings/api'
 import { Brand } from '@/components/Brand'
 import { cn } from '@/lib/utils'
 import { ROLE_LABELS } from '@/types/domain'
@@ -10,7 +11,7 @@ import { accountLabel } from '@/lib/ciAuth'
 
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { hasRole, profile, session, roles, signOut } = useAuth()
-  const sections = visibleSections(hasRole)
+  const sections = visibleSections(hasRole, useModules())
 
   return (
     <div className="glass flex h-full flex-col rounded-3xl text-smoke">
@@ -105,7 +106,7 @@ export function AppShell() {
 /** Barra inferior en el celular: accesos principales del perfil + "Más" abre el menú completo. */
 function BottomNav({ onMore }: { onMore: () => void }) {
   const { hasRole } = useAuth()
-  const items = mobileItems(hasRole)
+  const items = mobileItems(hasRole, useModules())
   const tab = 'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-full py-1.5 text-[11px] font-medium transition-colors'
 
   return (

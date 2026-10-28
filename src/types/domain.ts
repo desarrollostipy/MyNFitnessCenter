@@ -41,7 +41,13 @@ export interface Gym {
   fiscal_point: string | null
   fiscal_activity: string | null
   fiscal_transaction_type: string
+  module_training: boolean
+  module_achievements: boolean
+  module_ranking: boolean
 }
+
+/** Módulos opcionales del portal del alumno (los activa el administrador). */
+export type GymModule = 'training' | 'achievements' | 'ranking'
 
 export interface AdminUserRow {
   user_id: string
@@ -180,6 +186,7 @@ export interface Student {
   billing_ruc: string | null
   billing_name: string | null
   lead_id: string | null
+  ranking_opt_out: boolean
   created_at: string
 }
 

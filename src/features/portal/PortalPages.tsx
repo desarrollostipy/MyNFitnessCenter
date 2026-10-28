@@ -2,30 +2,15 @@ import { Link } from 'react-router-dom'
 import { CalendarClock, ChevronRight, Phone, ReceiptText, UserRound, Wallet } from 'lucide-react'
 import { formatDate, formatDateTime, formatPYG, todayISO } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useAuth } from '@/features/auth/AuthProvider'
 import { useMembershipStatus, useStudentCharges, useStudentSubscriptions } from '@/features/memberships/api'
 import { ChargeStatusBadge } from '@/features/memberships/chargeUi'
 import { issuedInvoice, useStudentPayments } from '@/features/cash/api'
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components/states'
+import { EmptyState, LoadingState, PageHeader } from '@/components/states'
 import { SUBSCRIPTION_STATUS_LABELS, type Student } from '@/types/domain'
-import { useMyStudent, useMyTrainers } from './api'
-
-/** Resuelve la ficha del alumno conectado; si no está vinculada, explica qué hacer. */
-function WithStudent({ children }: { children: (s: Student) => React.ReactNode }) {
-  const { session } = useAuth()
-  const me = useMyStudent(session?.user.id)
-  if (me.isLoading) return <LoadingState />
-  if (me.isError) return <ErrorState error={me.error} onRetry={() => me.refetch()} />
-  if (!me.data)
-    return (
-      <EmptyState
-        title="Tu cuenta todavía no está vinculada a una ficha de alumno"
-        description="Pedí en recepción que vinculen tu cuenta. Mientras tanto podés editar tu perfil."
-      />
-    )
-  return <>{children(me.data)}</>
-}
+import { useMyTrainers } from './api'
+import { WithStudent } from './WithStudent'
+import { RankingCard, TrainingSummaryCard } from './TrainingPages'
 
 function greeting() {
   const h = Number(new Intl.DateTimeFormat('es-PY', { timeZone: 'America/Asuncion', hour: 'numeric', hour12: false }).format(new Date()))
@@ -82,6 +67,9 @@ function Home({ student }: { student: Student }) {
           {nextCharge && <p className="text-xs text-muted-foreground tabular-nums">{formatPYG(nextCharge.total - nextCharge.paid_amount)}</p>}
         </Card>
       </div>
+
+      <TrainingSummaryCard student={student} />
+      <RankingCard student={student} />
 
       <Card>
         <CardHeader>

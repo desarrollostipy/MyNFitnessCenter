@@ -47,7 +47,7 @@ export function useStudent(id: string | undefined) {
 
 export type StudentInput = Omit<
   Student,
-  'id' | 'gym_id' | 'user_id' | 'status' | 'status_reason' | 'status_changed_at' | 'photo_path' | 'created_at' | 'lead_id'
+  'id' | 'gym_id' | 'user_id' | 'status' | 'status_reason' | 'status_changed_at' | 'photo_path' | 'created_at' | 'lead_id' | 'ranking_opt_out'
 >
 
 export function useSaveStudent(gymId: string) {

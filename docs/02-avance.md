@@ -305,3 +305,24 @@
   - "Enviar por WhatsApp" abre el chat con el celular del alumno (formato 595…).
   - Si el cobro ya tiene factura, el mensaje incluye su número y su CDC.
   - El panel de factura muestra el email del receptor para cargarlo en e-Kuatia.
+
+## Portal del alumno: entrenamientos, logros y ranking (28/10/2026)
+- **Módulos opcionales** (migración `20261107000001`): `gyms.module_training`, `module_achievements` y `module_ranking`.
+  - Se activan en Configuración → "Portal del alumno". Si un módulo está apagado, no aparece en el menú ni en el inicio del alumno.
+  - "Logros y compartir" depende de "Mis entrenamientos".
+- **Fuente de la asistencia:** `check_ins`, uno por alumno y día.
+  - Hoy los registra recepción (control de ingreso y venta rápida).
+  - Con el molinete (Etapa 2) llegan a la misma tabla con `source = 'device'`, así que no hay que cambiar nada del portal.
+- **Mis entrenamientos** (`/mi/entrenamientos`):
+  - entrenamientos del mes, racha actual y mejor racha, y total;
+  - calendario mensual con los días entrenados;
+  - sesiones restantes de los planes por sesiones: sesiones del período menos los ingresos dentro del período (solo informativo, no bloquea el ingreso).
+- **Racha:** semanas seguidas con 2 o más entrenamientos. La semana en curso no la corta hasta que termina.
+- **Logros:** 12 medallas (1 a 200 entrenamientos, rachas de 4, 8 y 12 semanas, 12 y 20 en un mes, madrugador con 10 antes de las 7:00).
+  - Se calculan en `src/lib/progress.ts` a partir de los ingresos, con la fecha en que se lograron; tiene pruebas en `progress.test.ts`.
+- **Compartir:** tarjeta en formato historia (1080×1920) generada en el navegador. Se comparte con el menú del celular o se descarga.
+- **Ranking del mes** (`attendance_ranking()`):
+  - top 5 en el inicio del alumno, más su propio puesto;
+  - nombre corto (María L.), empates con el mismo puesto, solo alumnos activos;
+  - cada alumno puede salir del ranking (`set_ranking_opt_out()`);
+  - si el módulo está apagado, la base lo rechaza.
