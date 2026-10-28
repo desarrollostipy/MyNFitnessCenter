@@ -16,6 +16,7 @@ create temp table demo_periods on commit drop as
 create temp table demo_payments on commit drop as
   select id from public.payments where student_id::text like 'de%';
 
+delete from public.check_ins where student_id::text like 'de%';
 delete from public.cash_movements where source_id in (select id from demo_payments) or source_id::text like 'de%';
 delete from public.expenses where id::text like 'de%';
 delete from public.payment_allocations where payment_id in (select id from demo_payments);

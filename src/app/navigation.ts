@@ -9,7 +9,9 @@ import {
   Wallet,
   Building2,
   CreditCard,
+  DoorOpen,
   Dumbbell,
+  ShoppingBag,
   GraduationCap,
   History,
   IdCard,
@@ -44,9 +46,16 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [{ label: 'Dashboard', to: '/admin/dashboard', icon: LayoutDashboard, roles: ['admin', 'accountant'], mobile: 0.5, short: 'Inicio' }],
   },
   {
+    title: 'Recepción',
+    items: [
+      { label: 'Control de ingreso', to: '/ingreso', icon: DoorOpen, roles: ['admin', 'treasurer'], mobile: 0, short: 'Ingreso' },
+      { label: 'Venta rápida', to: '/caja/venta-rapida', icon: ShoppingBag, roles: ['admin', 'treasurer'], mobile: 0.2, short: 'Vender' },
+    ],
+  },
+  {
     title: 'Caja',
     items: [
-      { label: 'Cobrar cuota', to: '/caja/cobrar', icon: Wallet, roles: ['admin', 'treasurer'], mobile: 0, short: 'Cobrar' },
+      { label: 'Cobrar cuota', to: '/caja/cobrar', icon: Wallet, roles: ['admin', 'treasurer'], mobile: 0.4, short: 'Cobrar' },
       { label: 'Caja', to: '/caja', icon: Landmark, roles: ['admin', 'treasurer'], mobile: 4 },
       { label: 'Cobranzas', to: '/admin/cobros', icon: BadgeDollarSign, roles: ['admin', 'accountant', 'treasurer'] },
       { label: 'Egresos', to: '/admin/egresos', icon: Receipt, roles: ['admin', 'accountant', 'treasurer'] },
@@ -117,7 +126,7 @@ export function mobileItems(hasRole: (...r: AppRole[]) => boolean): NavItem[] {
 /** Primera pantalla útil según los roles del usuario. */
 export function homePathFor(hasRole: (...r: AppRole[]) => boolean): string {
   if (hasRole('admin', 'accountant')) return '/admin/dashboard'
-  if (hasRole('treasurer')) return '/caja'
+  if (hasRole('treasurer')) return '/ingreso'
   if (hasRole('trainer')) return '/entrenador/alumnos'
   if (hasRole('student')) return '/mi'
   return '/cuenta'

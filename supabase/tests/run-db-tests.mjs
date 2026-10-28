@@ -898,6 +898,71 @@ await test('vincular cuenta del alumno: sólo admin', async () => {
   assert(r.length === 1 && r[0].role === 'student', 'no asignó el perfil Alumno')
 })
 
+console.log('\nRecepción: venta rápida e ingresos')
+const dayPass = (await db.query(`select id from public.membership_plans where name = 'Pase diario'`)).rows[0].id
+const qkey = (n) => `44444444-4444-4444-8444-${String(n).padStart(12, '0')}`
+let walkIn
+
+await test('venta rápida: alta mínima + pase + cobro + ingreso; idempotente', async () => {
+  await as(treasurer)
+  const r1 = (await db.query(`select public.quick_sale($1, null, 'Ana', 'Benítez', '4.123.456', '0981 111222', $2, $3, null, $4) as r`, [GYM, dayPass, cashId, qkey(1)])).rows[0].r
+  const r2 = (await db.query(`select public.quick_sale($1, null, 'Ana', 'Benítez', '4123456', null, $2, $3, null, $4) as r`, [GYM, dayPass, cashId, qkey(1)])).rows[0].r
+  walkIn = r1.student_id
+  assert(r1.student_created && r1.payment_id && r1.check_in?.access_ok === true, JSON.stringify(r1))
+  assert(r2.subscription_id === r1.subscription_id && r2.payment_id === r1.payment_id, 'duplicó la venta')
+  await db.exec('reset role')
+  const p = (await db.query(`select amount, receipt_number from public.payments where id = $1`, [r1.payment_id])).rows[0]
+  assert(Number(p.amount) === 20000 && p.receipt_number.startsWith('RI-'), JSON.stringify(p))
+  const s = (await db.query(`select document_number from public.students where id = $1`, [walkIn])).rows[0]
+  assert(s.document_number === '4123456', 'documento sin normalizar')
+  assert((await db.query(`select count(*)::int as n from public.check_ins where student_id = $1`, [walkIn])).rows[0].n === 1, 'ingreso')
+})
+
+await test('venta rápida reconoce el documento y no vende el mismo pase dos veces el mismo día', async () => {
+  await as(treasurer)
+  await expectError(db.query(`select public.quick_sale($1, null, 'Otra', 'Persona', '4123456', null, $2, $3, null, $4)`, [GYM, dayPass, cashId, qkey(2)]), 'P0001')
+  await db.exec('reset role')
+  assert((await db.query(`select count(*)::int as n from public.students where document_number = '4123456'`)).rows[0].n === 1, 'duplicó alumno')
+})
+
+await test('venta rápida fallida no deja alumno ni cobro a medias; entrenador no puede vender', async () => {
+  await as(treasurer)
+  const badMethod = '00000000-0000-4000-8000-000000000999'
+  await expectError(db.query(`select public.quick_sale($1, null, 'Luis', 'Gómez', '5550001', null, $2, $3, null, $4)`, [GYM, dayPass, badMethod, qkey(3)]), 'P0001')
+  await db.exec('reset role')
+  assert((await db.query(`select count(*)::int as n from public.students where document_number = '5550001'`)).rows[0].n === 0, 'quedó el alumno')
+  await as(trainerUser)
+  await expectError(db.query(`select public.quick_sale($1, null, 'Luis', 'Gómez', '5550001', null, $2, $3, null, $4)`, [GYM, dayPass, cashId, qkey(4)]), '42501')
+})
+
+await test('ingreso: con deuda vencida exige motivo y queda auditado; uno por día', async () => {
+  await as(treasurer)
+  const st = (await db.query(`select public.check_access($1) as r`, [studentA])).rows[0].r
+  assert(st.ok === false && st.issues.includes('overdue'), JSON.stringify(st))
+  await expectError(db.query(`select public.register_check_in($1)`, [studentA]), 'P0001')
+  const c1 = (await db.query(`select public.register_check_in($1, 'Paga el viernes') as r`, [studentA])).rows[0].r
+  const c2 = (await db.query(`select public.register_check_in($1) as r`, [studentA])).rows[0].r
+  assert(c1.access_ok === false && c1.already === false && c2.already === true && c2.id === c1.id, JSON.stringify({ c1, c2 }))
+  await db.exec('reset role')
+  assert((await db.query(`select count(*)::int as n from public.audit_logs where action = 'check_in_override' and entity_id = $1`, [c1.id])).rows[0].n === 1, 'sin auditoría')
+})
+
+await test('ingreso: alumno sin membresía figura como no habilitado', async () => {
+  await as(treasurer)
+  const st = (await db.query(`select public.check_access($1) as r`, [studentB])).rows[0].r
+  assert(!st.ok && (st.issues.includes('no_membership') || st.issues.includes('inactive')), JSON.stringify(st))
+})
+
+await test('ingresos: nadie escribe directo; el alumno sólo ve los suyos; entrenador no consulta', async () => {
+  await as(admin2)
+  await expectError(db.query(`insert into public.check_ins (gym_id, student_id, access_ok) values ($1, $2, true)`, [GYM, studentB]), '42501')
+  await as(studentUser)
+  const rows = (await db.query(`select student_id from public.check_ins`)).rows
+  assert(rows.length === 1 && rows[0].student_id === studentA, `vio ${rows.length}`)
+  await as(trainerUser)
+  await expectError(db.query(`select public.check_access($1)`, [studentA]), '42501')
+})
+
 console.log('\nPrivilegios')
 
 await test('nadie borra físicamente alumnos, planes ni asignaciones', async () => {

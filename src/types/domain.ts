@@ -353,3 +353,47 @@ export interface AuditLog {
   reason: string | null
   created_at: string
 }
+
+// ---------------------------------------------------------------------
+// Recepción: control de ingreso y venta rápida
+// ---------------------------------------------------------------------
+export type AccessIssue = 'inactive' | 'no_membership' | 'paused' | 'overdue'
+
+export const ACCESS_ISSUE_LABELS: Record<AccessIssue, string> = {
+  inactive: 'Alumno dado de baja',
+  no_membership: 'Sin membresía ni pase vigente hoy',
+  paused: 'Membresía en pausa',
+  overdue: 'Tiene cuotas vencidas',
+}
+
+export interface AccessStatus {
+  student_id: string
+  ok: boolean
+  issues: AccessIssue[]
+  active_until: string | null
+  plans: string[]
+  overdue_amount: number
+  open_amount: number
+  checked_in_at: string | null
+}
+
+export interface CheckIn {
+  id: string
+  gym_id: string
+  student_id: string
+  business_date: string
+  checked_in_at: string
+  source: 'reception' | 'device'
+  access_ok: boolean
+  issues: AccessIssue[]
+  override_reason: string | null
+  students?: Pick<Student, 'first_name' | 'last_name' | 'document_number'> | null
+}
+
+export interface QuickSaleResult {
+  student_id: string
+  subscription_id: string
+  student_created: boolean
+  payment_id: string | null
+  check_in: { id: string; already: boolean; checked_in_at: string; access_ok: boolean } | null
+}

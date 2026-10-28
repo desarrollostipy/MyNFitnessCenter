@@ -195,3 +195,31 @@
 - `npm run test:db` → 84/84 (10 nuevas). `check-demo.mjs` OK. `tsc`, `lint`, `build` sin errores.
 - `dashboard_summary` ejecutado en producción con la identidad del admin: cifras coherentes con los datos de demo.
 - Pendiente de verificar en el sitio publicado: invitación real de un alumno (requiere configurar la URL del sitio en Supabase).
+
+---
+
+## Pase diario/semanal, Itauguá e íconos (28/10/2026)
+- `20261103000001/2`: tipos de plan `daily` (1 día) y `weekly` (7 días); un trigger les quita la renovación automática.
+- Web pública: Itauguá, Paraguay. Íconos PNG (pestaña, iPhone, Android) y `manifest.webmanifest`.
+
+## Recepción — Venta rápida y control de ingreso
+
+### Base de datos (`20261104000001_reception.sql`)
+- `check_ins`: un ingreso por alumno y día (`source` = `reception` o `device`, preparado para el molinete). Si no está habilitado se registra sólo con motivo, y queda auditado (`check_in_override`).
+- `check_access(alumno)`: habilitado si está activo, tiene membresía o pase vigente hoy, no está en pausa y no tiene cuotas vencidas (por fecha, aunque el proceso nocturno no las haya marcado).
+- `register_check_in(alumno, motivo)`: idempotente por día.
+- `quick_sale(...)`: alumno existente o alta mínima (nombre, apellido, CI, teléfono; si el CI ya existe usa esa ficha) + plan desde hoy al precio del servidor, sin descuento + cobro exacto de esa cuota con recibo + ingreso opcional. Todo en una transacción: si falla el cobro no queda el alumno ni la membresía. Idempotente.
+- Decisión: la venta rápida la puede hacer el cajero (treasurer); la inscripción con descuento sigue siendo sólo del admin.
+
+### Frontend
+- **Control de ingreso** (`/ingreso`, inicio del cajero): búsqueda por CI o nombre, cartel verde/rojo con motivos y deuda vencida, registrar ingreso, dejar pasar con motivo, atajos a Cobrar y Vender pase; lista de ingresos de hoy.
+- **Venta rápida** (`/caja/venta-rapida`): pases primero, medio de pago, referencia, "registrar el ingreso ahora"; termina en el recibo.
+- Menú: nueva sección Recepción; barra inferior del celular con Ingreso, Vender y Cobrar.
+
+### Pruebas (28/10/2026)
+- `npm run test:db` → 91/91 (7 nuevas). `tsc`, `lint`, `build` sin errores.
+- `check_access` ejecutado en producción con la identidad del admin sobre alumnos de demo: resultados coherentes (con y sin cuotas vencidas).
+- Pendiente: probar las pantallas con usuario real en el sitio publicado.
+
+### Molinete
+- Pendiente de datos del equipo (marca y modelo exactos, forma de identificación, conexión a red/internet, software actual) para definir la integración.

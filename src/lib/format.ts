@@ -57,3 +57,11 @@ export function formatDateTime(value: string | Date | null | undefined): string 
   if (!value) return '—'
   return dateTimeFmt.format(new Date(value)).replace(',', '')
 }
+
+const timeFmt = new Intl.DateTimeFormat('es-PY', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+
+/** Instante → "HH:mm" en hora de Asunción. */
+export function formatTime(value: string | Date | null | undefined): string {
+  if (!value) return '—'
+  return timeFmt.format(new Date(value))
+}

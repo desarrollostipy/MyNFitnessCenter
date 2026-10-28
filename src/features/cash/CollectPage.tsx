@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { errorMessage } from '@/lib/errors'
 import { formatDate, formatPYG } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { usePaymentMethods } from '@/features/catalog/api'
-import { useStudent, useStudents } from '@/features/students/api'
+import { useStudent } from '@/features/students/api'
+import { StudentPicker } from '@/features/students/StudentPicker'
 import { ChargeStatusBadge } from '@/features/memberships/chargeUi'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
@@ -30,53 +31,6 @@ export function CollectPage() {
         <StudentPicker onPick={(id) => setParams({ alumno: id })} />
       )}
     </>
-  )
-}
-
-function StudentPicker({ onPick }: { onPick: (id: string) => void }) {
-  const { gymId } = useAuth()
-  const [search, setSearch] = useState('')
-  const [term, setTerm] = useState('')
-  useEffect(() => {
-    const t = setTimeout(() => setTerm(search), 300)
-    return () => clearTimeout(t)
-  }, [search])
-  const q = useStudents(gymId, { search: term, status: 'active', page: 0 })
-
-  return (
-    <Card>
-      <CardContent className="space-y-3 pt-5">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            autoFocus
-            placeholder="Buscar alumno por nombre o documento"
-            className="pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Buscar alumno"
-          />
-        </div>
-        {q.isLoading ? (
-          <LoadingState />
-        ) : !q.data?.rows.length ? (
-          <EmptyState title="Sin resultados" />
-        ) : (
-          <ul className="divide-y divide-border">
-            {q.data.rows.map((s) => (
-              <li key={s.id}>
-                <button onClick={() => onPick(s.id)} className="flex w-full items-center justify-between px-1 py-3 text-left hover:bg-muted/50">
-                  <span className="font-medium">
-                    {s.last_name}, {s.first_name}
-                  </span>
-                  <span className="text-xs text-muted-foreground">CI {s.document_number}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
   )
 }
 

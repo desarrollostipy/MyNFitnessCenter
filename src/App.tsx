@@ -35,6 +35,8 @@ import { PaymentsPage } from '@/features/cash/PaymentsPage'
 import { ExpensesPage } from '@/features/expenses/ExpensesPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { MyHomePage, MyMembershipPage, MyPaymentsPage } from '@/features/portal/PortalPages'
+import { CheckInPage } from '@/features/reception/CheckInPage'
+import { QuickSalePage } from '@/features/reception/QuickSalePage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -89,6 +91,8 @@ export default function App() {
               <Route path="/admin/alumnos/:id" element={<RequireRole roles={['admin', 'accountant', 'treasurer']}><StudentDetailPage /></RequireRole>} />
               <Route path="/caja" element={<RequireRole roles={['admin', 'treasurer']}><CashPage /></RequireRole>} />
               <Route path="/caja/cobrar" element={<RequireRole roles={['admin', 'treasurer']}><CollectPage /></RequireRole>} />
+              <Route path="/caja/venta-rapida" element={<RequireRole roles={['admin', 'treasurer']}><QuickSalePage /></RequireRole>} />
+              <Route path="/ingreso" element={<RequireRole roles={['admin', 'treasurer']}><CheckInPage /></RequireRole>} />
               <Route path="/recibo/:id" element={<RequireRole roles={['admin', 'accountant', 'treasurer', 'student']}><ReceiptPage /></RequireRole>} />
               <Route path="/mi" element={<RequireRole roles={['student']}><MyHomePage /></RequireRole>} />
               <Route path="/mi/membresia" element={<RequireRole roles={['student']}><MyMembershipPage /></RequireRole>} />
