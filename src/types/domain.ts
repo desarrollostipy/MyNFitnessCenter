@@ -31,6 +31,12 @@ export interface Gym {
   address: string | null
   timezone: string
   currency: string
+  fiscal_timbrado: string | null
+  fiscal_timbrado_from: string | null
+  fiscal_establishment: string | null
+  fiscal_point: string | null
+  fiscal_activity: string | null
+  fiscal_transaction_type: string
 }
 
 export interface AdminUserRow {
@@ -167,6 +173,8 @@ export interface Student {
   emergency_contact_name: string | null
   emergency_contact_phone: string | null
   notes: string | null
+  billing_ruc: string | null
+  billing_name: string | null
   lead_id: string | null
   created_at: string
 }
@@ -303,6 +311,70 @@ export interface Payment {
   voided_at: string | null
   students?: { first_name: string; last_name: string; document_number: string } | null
   payment_methods?: { name: string; affects_cash: boolean } | null
+  invoices?: Pick<Invoice, 'id' | 'invoice_number' | 'status'>[]
+}
+
+// ---------------------------------------------------------------------
+// Facturación electrónica (Etapa A: se emite en e-Kuatia y se registra el CDC)
+// ---------------------------------------------------------------------
+export type InvoiceStatus = 'issued' | 'cancelled' | 'credited'
+export type InvoiceReceiver = 'ruc' | 'ci' | 'foreign' | 'anonymous'
+
+export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
+  issued: 'Vigente',
+  cancelled: 'Cancelada',
+  credited: 'Con nota de crédito',
+}
+
+/** Cómo se carga el receptor en el facturador de la DNIT. */
+export const INVOICE_RECEIVER_LABELS: Record<InvoiceReceiver, string> = {
+  ruc: 'Contribuyente (RUC)',
+  ci: 'No contribuyente · Cédula paraguaya',
+  foreign: 'No contribuyente · Documento extranjero',
+  anonymous: 'Innominado (consumidor final)',
+}
+
+export interface InvoiceItem {
+  description: string
+  amount: number
+  iva10: number
+}
+
+export interface Invoice {
+  id: string
+  payment_id: string
+  cdc: string
+  invoice_number: string
+  issued_on: string
+  receiver_kind: InvoiceReceiver
+  receiver_document: string | null
+  receiver_name: string
+  total: number
+  iva10: number
+  items: InvoiceItem[]
+  status: InvoiceStatus
+  cancelled_at: string | null
+  cancel_reason: string | null
+  credit_note_cdc: string | null
+  created_at: string
+}
+
+export interface InvoiceDraft {
+  payment: { id: string; receipt_number: string; paid_at: string; amount: number; status: 'posted' | 'voided' }
+  emitter: {
+    legal_name: string | null
+    ruc: string | null
+    timbrado: string | null
+    establishment: string | null
+    point: string | null
+    transaction_type: string
+  }
+  receiver: { kind: InvoiceReceiver; document: string | null; name: string }
+  has_ci: boolean
+  items: InvoiceItem[]
+  total: number
+  iva10: number
+  missing: string[]
 }
 
 export interface ExpenseCategory {

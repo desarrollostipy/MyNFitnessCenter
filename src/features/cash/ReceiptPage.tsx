@@ -6,6 +6,8 @@ import { Monogram } from '@/components/Brand'
 import { Button } from '@/components/ui/button'
 import { ErrorState, LoadingState } from '@/components/states'
 import { fullName } from '@/types/domain'
+import { InvoicePanel } from '@/features/invoicing/InvoicePanel'
+import { StudentInvoiceNote } from '@/features/invoicing/StudentInvoiceNote'
 import { useReceipt } from './api'
 
 export function ReceiptPage() {
@@ -123,6 +125,8 @@ export function ReceiptPage() {
           {gym.phone && <span className="block">{gym.phone}</span>}
         </footer>
       </article>
+
+      {isStaff ? <InvoicePanel paymentId={p.id} paymentVoided={voided} /> : <StudentInvoiceNote paymentId={p.id} />}
     </>
   )
 }

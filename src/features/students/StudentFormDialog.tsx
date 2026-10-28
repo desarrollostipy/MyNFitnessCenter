@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { errorMessage } from '@/lib/errors'
 import { todayISO } from '@/lib/format'
+import { isValidRuc } from '@/lib/fiscal'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/form-controls'
@@ -35,6 +36,11 @@ const schema = z.object({
   emergency_contact_name: z.string().trim().max(120),
   emergency_contact_phone: phone,
   notes: z.string().trim().max(2000),
+  billing_ruc: z.string().trim().refine((v) => v === '' || isValidRuc(v), 'RUC inválido (formato 1234567-8, revise el dígito verificador)'),
+  billing_name: z.string().trim().max(160),
+}).refine((v) => (v.billing_ruc === '') === (v.billing_name === ''), {
+  path: ['billing_name'],
+  message: 'Para facturar a RUC complete RUC y razón social',
 })
 type FormInput = z.input<typeof schema>
 type FormOutput = z.output<typeof schema>
@@ -59,6 +65,8 @@ function toForm(s: Student | null, prefill?: StudentPrefill): FormInput {
     emergency_contact_name: s?.emergency_contact_name ?? '',
     emergency_contact_phone: s?.emergency_contact_phone ?? '',
     notes: s?.notes ?? '',
+    billing_ruc: s?.billing_ruc ?? '',
+    billing_name: s?.billing_name ?? '',
   }
 }
 
@@ -97,6 +105,8 @@ export function StudentFormDialog({
       emergency_contact_name: nul(v.emergency_contact_name),
       emergency_contact_phone: nul(v.emergency_contact_phone),
       notes: nul(v.notes),
+      billing_ruc: nul(v.billing_ruc),
+      billing_name: nul(v.billing_name),
     }
     save.mutate(
       { id: student?.id, values, leadId },
@@ -154,6 +164,18 @@ export function StudentFormDialog({
             <Input id="st-ec-phone" type="tel" {...register('emergency_contact_phone')} />
           </Field>
         </div>
+        <fieldset className="grid gap-4 rounded-2xl border border-border p-4 sm:grid-cols-2">
+          <legend className="px-1 text-sm font-medium">Facturar a RUC (opcional)</legend>
+          <p className="-mt-1 text-xs text-muted-foreground sm:col-span-2">
+            Sin RUC, la factura sale a nombre del alumno con su cédula.
+          </p>
+          <Field label="RUC" htmlFor="st-ruc" error={errors.billing_ruc?.message}>
+            <Input id="st-ruc" placeholder="1234567-8" autoComplete="off" {...register('billing_ruc')} />
+          </Field>
+          <Field label="Razón social" htmlFor="st-ruc-name" error={errors.billing_name?.message}>
+            <Input id="st-ruc-name" autoComplete="off" {...register('billing_name')} />
+          </Field>
+        </fieldset>
         <Field
           label="Observaciones"
           htmlFor="st-notes"

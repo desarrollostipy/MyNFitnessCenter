@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { errorMessage } from '@/lib/errors'
+import { isValidRuc } from '@/lib/fiscal'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
@@ -14,14 +15,21 @@ import { ErrorState, LoadingState, PageHeader } from '@/components/states'
 import type { Gym } from '@/types/domain'
 
 const optional = (max: number) => z.string().trim().max(max)
+const digits = (n: number, label: string) => z.string().trim().regex(new RegExp(`^(\\d{${n}})?$`), `${label}: ${n} dígitos`)
 
 const schema = z.object({
   name: z.string().trim().min(2, 'Ingrese el nombre comercial').max(120),
   legal_name: optional(160),
-  ruc: optional(20).regex(/^(\d{1,8}-\d)?$/, 'Formato RUC: 1234567-8'),
+  ruc: optional(20).refine((v) => v === '' || isValidRuc(v), 'RUC inválido (formato 1234567-8, revise el dígito verificador)'),
   phone: optional(30),
   email: z.union([z.literal(''), z.string().trim().email('Email inválido')]),
   address: optional(250),
+  fiscal_timbrado: digits(8, 'Timbrado'),
+  fiscal_timbrado_from: z.string(),
+  fiscal_establishment: digits(3, 'Establecimiento'),
+  fiscal_point: digits(3, 'Punto de expedición'),
+  fiscal_activity: optional(160),
+  fiscal_transaction_type: z.string().trim().min(3, 'Indique el tipo de transacción').max(80),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -49,6 +57,12 @@ export function GymSettingsPage() {
         phone: g.phone ?? '',
         email: g.email ?? '',
         address: g.address ?? '',
+        fiscal_timbrado: g.fiscal_timbrado ?? '',
+        fiscal_timbrado_from: g.fiscal_timbrado_from ?? '',
+        fiscal_establishment: g.fiscal_establishment ?? '',
+        fiscal_point: g.fiscal_point ?? '',
+        fiscal_activity: g.fiscal_activity ?? '',
+        fiscal_transaction_type: g.fiscal_transaction_type,
       })
     }
   }, [gym.data, form])
@@ -65,6 +79,12 @@ export function GymSettingsPage() {
           phone: nul(v.phone),
           email: nul(v.email),
           address: nul(v.address),
+          fiscal_timbrado: nul(v.fiscal_timbrado),
+          fiscal_timbrado_from: nul(v.fiscal_timbrado_from),
+          fiscal_establishment: nul(v.fiscal_establishment),
+          fiscal_point: nul(v.fiscal_point),
+          fiscal_activity: nul(v.fiscal_activity),
+          fiscal_transaction_type: v.fiscal_transaction_type,
         })
         .eq('id', gymId)
       if (error) throw error
@@ -72,6 +92,7 @@ export function GymSettingsPage() {
     onSuccess: () => {
       toast.success('Configuración guardada.')
       qc.invalidateQueries({ queryKey: ['gym', gymId] })
+      qc.invalidateQueries({ queryKey: ['invoice-draft'] })
     },
     onError: (e) => toast.error(errorMessage(e)),
   })
@@ -80,21 +101,21 @@ export function GymSettingsPage() {
 
   return (
     <>
-      <PageHeader title="Configuración" description="Datos de la empresa." />
+      <PageHeader title="Configuración" description="Datos de la empresa y de facturación." />
       {gym.isLoading ? (
         <LoadingState />
       ) : gym.isError ? (
         <ErrorState error={gym.error} onRetry={() => gym.refetch()} />
       ) : (
-        <Card className="max-w-2xl">
-          <CardHeader>
-            <CardTitle>Empresa</CardTitle>
-            <CardDescription>
-              Zona horaria {gym.data?.timezone} · Moneda {gym.data?.currency}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={form.handleSubmit((v) => save.mutate(v))} className="grid gap-4 sm:grid-cols-2" noValidate>
+        <form onSubmit={form.handleSubmit((v) => save.mutate(v))} className="max-w-2xl space-y-4" noValidate>
+          <Card>
+            <CardHeader>
+              <CardTitle>Empresa</CardTitle>
+              <CardDescription>
+                Zona horaria {gym.data?.timezone} · Moneda {gym.data?.currency}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
               <Field label="Nombre comercial" htmlFor="name" error={errors.name?.message}>
                 <Input id="name" {...form.register('name')} />
               </Field>
@@ -113,14 +134,48 @@ export function GymSettingsPage() {
               <Field label="Dirección" htmlFor="address" error={errors.address?.message}>
                 <Input id="address" {...form.register('address')} />
               </Field>
-              <div className="sm:col-span-2">
-                <Button type="submit" loading={save.isPending} disabled={!form.formState.isDirty}>
-                  Guardar cambios
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Facturación electrónica</CardTitle>
+              <CardDescription>
+                Copie estos datos tal como figuran en su factura de e-Kuatia. Las facturas se emiten en el facturador de la DNIT y
+                acá se registra el CDC de cada una.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <Field label="Timbrado N°" htmlFor="fiscal_timbrado" error={errors.fiscal_timbrado?.message}>
+                <Input id="fiscal_timbrado" inputMode="numeric" placeholder="12345678" {...form.register('fiscal_timbrado')} />
+              </Field>
+              <Field label="Inicio de vigencia" htmlFor="fiscal_timbrado_from" error={errors.fiscal_timbrado_from?.message}>
+                <Input id="fiscal_timbrado_from" type="date" {...form.register('fiscal_timbrado_from')} />
+              </Field>
+              <Field label="Establecimiento" htmlFor="fiscal_establishment" error={errors.fiscal_establishment?.message}>
+                <Input id="fiscal_establishment" inputMode="numeric" placeholder="001" {...form.register('fiscal_establishment')} />
+              </Field>
+              <Field label="Punto de expedición" htmlFor="fiscal_point" error={errors.fiscal_point?.message}>
+                <Input id="fiscal_point" inputMode="numeric" placeholder="001" {...form.register('fiscal_point')} />
+              </Field>
+              <Field label="Actividad económica" htmlFor="fiscal_activity" error={errors.fiscal_activity?.message}>
+                <Input id="fiscal_activity" placeholder="Administración de instalaciones deportivas" {...form.register('fiscal_activity')} />
+              </Field>
+              <Field
+                label="Tipo de transacción"
+                htmlFor="fiscal_transaction_type"
+                error={errors.fiscal_transaction_type?.message}
+                hint="Para cuotas y pases suele ser «Prestación de servicios». Confírmelo con su contador."
+              >
+                <Input id="fiscal_transaction_type" {...form.register('fiscal_transaction_type')} />
+              </Field>
+            </CardContent>
+          </Card>
+
+          <Button type="submit" loading={save.isPending} disabled={!form.formState.isDirty}>
+            Guardar cambios
+          </Button>
+        </form>
       )}
     </>
   )

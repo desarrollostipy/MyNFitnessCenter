@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useMembershipStatus, useStudentCharges, useStudentSubscriptions } from '@/features/memberships/api'
 import { ChargeStatusBadge } from '@/features/memberships/chargeUi'
-import { useStudentPayments } from '@/features/cash/api'
+import { issuedInvoice, useStudentPayments } from '@/features/cash/api'
 import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components/states'
 import { SUBSCRIPTION_STATUS_LABELS, type Student } from '@/types/domain'
@@ -229,6 +229,7 @@ function MyPayments({ studentId }: { studentId: string }) {
                 <p className="text-xs text-muted-foreground">
                   {p.payment_methods?.name} · {formatDateTime(p.paid_at)}
                 </p>
+                {issuedInvoice(p) && <p className="text-xs text-muted-foreground">Factura {issuedInvoice(p)!.invoice_number}</p>}
               </div>
               <div className="flex items-center gap-2">
                 <span className={cn('font-medium tabular-nums', p.status === 'voided' && 'line-through')}>{formatPYG(p.amount)}</span>

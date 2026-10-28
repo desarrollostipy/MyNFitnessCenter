@@ -170,7 +170,11 @@ export function useVoidPayment() {
   })
 }
 
-const PAYMENT_SELECT = '*, students(first_name, last_name, document_number), payment_methods(name, affects_cash)'
+const PAYMENT_SELECT =
+  '*, students(first_name, last_name, document_number), payment_methods(name, affects_cash), invoices(id, invoice_number, status)'
+
+/** Factura vigente de un cobro, si tiene. */
+export const issuedInvoice = (p: Payment) => p.invoices?.find((i) => i.status === 'issued')
 
 export function usePayments(gymId: string, from: string, to: string) {
   return useQuery({

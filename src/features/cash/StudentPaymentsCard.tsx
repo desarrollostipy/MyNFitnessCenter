@@ -11,7 +11,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui
 import { ReasonDialog } from '@/components/ReasonDialog'
 import { ErrorState, LoadingState } from '@/components/states'
 import type { Payment } from '@/types/domain'
-import { useStudentPayments, useVoidPayment } from './api'
+import { issuedInvoice, useStudentPayments, useVoidPayment } from './api'
 
 export function StudentPaymentsCard({ studentId }: { studentId: string }) {
   const { hasRole } = useAuth()
@@ -49,6 +49,9 @@ export function StudentPaymentsCard({ studentId }: { studentId: string }) {
                   <p className="text-xs text-muted-foreground">
                     {p.payment_methods?.name} · {formatDateTime(p.paid_at)}
                   </p>
+                  {p.status === 'posted' && (
+                    <p className="text-xs text-muted-foreground">{issuedInvoice(p) ? `Factura ${issuedInvoice(p)!.invoice_number}` : 'Sin facturar'}</p>
+                  )}
                 </Link>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   <span className={cn('font-medium tabular-nums', p.status === 'voided' && 'line-through')}>{formatPYG(p.amount)}</span>

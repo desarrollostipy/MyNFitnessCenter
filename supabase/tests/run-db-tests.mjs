@@ -963,6 +963,104 @@ await test('ingresos: nadie escribe directo; el alumno sólo ve los suyos; entre
   await expectError(db.query(`select public.check_access($1)`, [studentA]), '42501')
 })
 
+console.log('\nFacturación (registro manual de CDC)')
+const dv11 = (digits) => {
+  let k = 2
+  let t = 0
+  for (let i = digits.length - 1; i >= 0; i--) {
+    t += Number(digits[i]) * k
+    k = k === 11 ? 2 : k + 1
+  }
+  const r = t % 11
+  return r > 1 ? 11 - r : 0
+}
+// CDC sintético con estructura y verificador válidos.
+const mkCdc = ({ type = '01', ruc = '80165579', rucDv = '0', number = 1, date = today.replaceAll('-', '') } = {}) => {
+  const base = `${type}${ruc.padStart(8, '0')}${rucDv}001001${String(number).padStart(7, '0')}2${date}1123456789`
+  return base + dv11(base)
+}
+const walkInPayment = async () =>
+  (await db.query(`select id from public.payments where student_id = $1 and status = 'posted' limit 1`, [walkIn])).rows[0].id
+let invoiceId
+
+await test('RUC de facturación del alumno: valida dígito verificador y exige razón social', async () => {
+  await as(admin2)
+  await expectError(db.query(`update public.students set billing_ruc = '80165579-1', billing_name = 'X SA' where id = $1`, [studentB]), '23514')
+  await expectError(db.query(`update public.students set billing_ruc = '80165579-0' where id = $1`, [studentB]), '23514')
+  await db.query(`update public.students set billing_ruc = '3675938-4', billing_name = 'Juan Pérez' where id = $1`, [studentB])
+  await db.query(`update public.gyms set ruc = '80165579-0', legal_name = 'MYN FITNEES CENTER E.A.S.', fiscal_timbrado = '18537244' where id = $1`, [GYM])
+})
+
+await test('datos a facturar: CI del alumno o consumidor final; IVA incluido 10%', async () => {
+  const pid = await walkInPayment()
+  await as(treasurer)
+  const d = (await db.query(`select public.invoice_draft($1) as r`, [pid])).rows[0].r
+  assert(d.receiver.kind === 'ci' && d.receiver.document === '4123456' && d.receiver.name === 'Ana Benítez', JSON.stringify(d.receiver))
+  assert(Number(d.total) === 20000 && Number(d.iva10) === 1818 && d.items.length === 1 && d.missing.length === 0, JSON.stringify(d))
+  const a = (await db.query(`select public.invoice_draft($1, true) as r`, [pid])).rows[0].r
+  assert(a.receiver.kind === 'anonymous' && a.receiver.name === 'Sin nombre' && a.receiver.document === null, JSON.stringify(a.receiver))
+  await as(trainerUser)
+  await expectError(db.query(`select public.invoice_draft($1)`, [pid]), '42501')
+})
+
+await test('registrar CDC: valida estructura, verificador, tipo, RUC y fecha', async () => {
+  const pid = await walkInPayment()
+  await as(treasurer)
+  const reg = (cdc) => db.query(`select public.register_invoice($1, $2)`, [pid, cdc])
+  await expectError(reg('123'), 'P0001')
+  const good = mkCdc({ number: 3892 })
+  await expectError(reg(good.slice(0, 43) + ((Number(good[43]) + 1) % 10)), 'P0001')
+  await expectError(reg(mkCdc({ type: '05' })), 'P0001')
+  await expectError(reg(mkCdc({ ruc: '3675938', rucDv: '4' })), 'P0001')
+  await expectError(reg(mkCdc({ date: '20991231' })), 'P0001')
+  await as(trainerUser)
+  await expectError(reg(good), '42501')
+})
+
+await test('registrar CDC: idempotente, una factura vigente por cobro, CDC único', async () => {
+  const pid = await walkInPayment()
+  const cdc = mkCdc({ number: 3892 })
+  await as(treasurer)
+  const spaced = cdc.replace(/(\d{4})/g, '$1 ')
+  invoiceId = (await db.query(`select public.register_invoice($1, $2) as id`, [pid, spaced])).rows[0].id
+  const again = (await db.query(`select public.register_invoice($1, $2) as id`, [pid, cdc])).rows[0].id
+  assert(again === invoiceId, 'duplicó la factura')
+  await expectError(db.query(`select public.register_invoice($1, $2)`, [pid, mkCdc({ number: 3893 })]), 'P0001')
+  const otherPay = (await db.query(`select id from public.payments where student_id = $1 and status = 'posted' limit 1`, [studentA])).rows[0].id
+  await expectError(db.query(`select public.register_invoice($1, $2)`, [otherPay, cdc]), 'P0001')
+  await db.exec('reset role')
+  const inv = (await db.query(`select * from public.invoices where id = $1`, [invoiceId])).rows[0]
+  assert(inv.invoice_number === '001-001-0003892' && inv.cdc === cdc && inv.receiver_kind === 'ci' && Number(inv.iva10) === 1818, JSON.stringify(inv))
+  assert((await db.query(`select count(*)::int as n from public.audit_logs where entity = 'invoices' and entity_id = $1`, [invoiceId])).rows[0].n >= 1, 'sin auditoría')
+})
+
+await test('no se anula un cobro con factura vigente; nota de crédito la libera (sólo admin)', async () => {
+  const pid = await walkInPayment()
+  await as(admin2)
+  await expectError(db.query(`select public.void_payment($1, 'Error de carga')`, [pid]), 'P0001')
+  await as(treasurer)
+  await expectError(db.query(`select public.cancel_invoice($1, 'Error')`, [invoiceId]), '42501')
+  await as(admin2)
+  await expectError(db.query(`select public.cancel_invoice($1, 'Error', $2)`, [invoiceId, mkCdc({ number: 10 })]), 'P0001')
+  await db.query(`select public.cancel_invoice($1, 'Error de carga', $2)`, [invoiceId, mkCdc({ type: '05', number: 10 })])
+  await expectError(db.query(`select public.cancel_invoice($1, 'Otra vez')`, [invoiceId]), 'P0001')
+  await db.query(`select public.void_payment($1, 'Error de carga')`, [pid])
+  await db.exec('reset role')
+  const inv = (await db.query(`select status, credit_note_cdc from public.invoices where id = $1`, [invoiceId])).rows[0]
+  assert(inv.status === 'credited' && inv.credit_note_cdc, JSON.stringify(inv))
+})
+
+await test('facturas: nadie escribe directo; el alumno sólo ve las de sus cobros', async () => {
+  const payA = (await db.query(`select id from public.payments where student_id = $1 and status = 'posted' limit 1`, [studentA])).rows[0].id
+  await as(treasurer)
+  await db.query(`select public.register_invoice($1, $2)`, [payA, mkCdc({ number: 4000 })])
+  await expectError(db.query(`update public.invoices set status = 'cancelled'`), '42501')
+  await as(studentUser)
+  const rows = (await db.query(`select payment_id from public.invoices`)).rows
+  assert(rows.length === 1 && rows[0].payment_id === payA, `vio ${rows.length}`)
+  await expectError(db.query(`select public.invoice_draft($1)`, [payA]), '42501')
+})
+
 console.log('\nPrivilegios')
 
 await test('nadie borra físicamente alumnos, planes ni asignaciones', async () => {

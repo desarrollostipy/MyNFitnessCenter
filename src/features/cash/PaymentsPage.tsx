@@ -7,7 +7,7 @@ import { Badge, Card } from '@/components/ui/card'
 import { Field, Input } from '@/components/ui/input'
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components/states'
 import { fullName } from '@/types/domain'
-import { usePayments } from './api'
+import { issuedInvoice, usePayments } from './api'
 
 type Range = 'today' | 'month' | 'custom'
 
@@ -24,8 +24,11 @@ export function PaymentsPage() {
   const t = range === 'custom' ? to : todayISO()
   const q = usePayments(gymId, f, t)
 
+  const [onlyUnbilled, setOnlyUnbilled] = useState(false)
   const posted = (q.data ?? []).filter((p) => p.status === 'posted')
   const total = posted.reduce((s, p) => s + Number(p.amount), 0)
+  const unbilled = posted.filter((p) => !issuedInvoice(p))
+  const rows = onlyUnbilled ? unbilled : (q.data ?? [])
   const byMethod = new Map<string, number>()
   for (const p of posted) {
     const name = p.payment_methods?.name ?? '—'
@@ -70,6 +73,15 @@ export function PaymentsPage() {
           <p className="mt-1 text-lg font-semibold tabular-nums">{formatPYG(total)}</p>
           <p className="text-xs text-muted-foreground">{posted.length} cobros</p>
         </Card>
+        <button type="button" onClick={() => setOnlyUnbilled((v) => !v)} aria-pressed={onlyUnbilled} className="text-left">
+          <Card className={cn('h-full p-4 transition-colors hover:bg-white/10', onlyUnbilled && 'ring-2 ring-brand')}>
+            <p className="text-xs text-muted-foreground">Sin facturar</p>
+            <p className="mt-1 text-lg font-semibold tabular-nums">{formatPYG(unbilled.reduce((s, p) => s + Number(p.amount), 0))}</p>
+            <p className="text-xs text-muted-foreground">
+              {unbilled.length} cobros · {onlyUnbilled ? 'mostrando sólo estos' : 'tocar para filtrar'}
+            </p>
+          </Card>
+        </button>
         {[...byMethod.entries()].map(([name, amount]) => (
           <Card key={name} className="p-4">
             <p className="text-xs text-muted-foreground">{name}</p>
@@ -83,11 +95,11 @@ export function PaymentsPage() {
           <LoadingState />
         ) : q.isError ? (
           <ErrorState error={q.error} onRetry={() => q.refetch()} />
-        ) : !q.data?.length ? (
-          <EmptyState title="Sin cobros en el período" />
+        ) : !rows.length ? (
+          <EmptyState title={onlyUnbilled ? 'Todo facturado en el período' : 'Sin cobros en el período'} />
         ) : (
           <ul className="divide-y divide-border">
-            {q.data.map((p) => (
+            {rows.map((p) => (
               <li key={p.id}>
                 <Link to={`/recibo/${p.id}`} className={cn('flex items-center gap-3 px-4 py-3 hover:bg-muted/50', p.status === 'voided' && 'opacity-60')}>
                   <div className="min-w-0 flex-1">
@@ -98,7 +110,13 @@ export function PaymentsPage() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className={cn('font-medium tabular-nums', p.status === 'voided' && 'line-through')}>{formatPYG(p.amount)}</span>
-                    {p.status === 'voided' && <Badge tone="danger">Anulado</Badge>}
+                    {p.status === 'voided' ? (
+                      <Badge tone="danger">Anulado</Badge>
+                    ) : issuedInvoice(p) ? (
+                      <Badge tone="accent">Fact. {issuedInvoice(p)!.invoice_number}</Badge>
+                    ) : (
+                      <Badge>Sin facturar</Badge>
+                    )}
                   </div>
                 </Link>
               </li>

@@ -19,6 +19,7 @@ create temp table demo_payments on commit drop as
 delete from public.check_ins where student_id::text like 'de%';
 delete from public.cash_movements where source_id in (select id from demo_payments) or source_id::text like 'de%';
 delete from public.expenses where id::text like 'de%';
+delete from public.invoices where payment_id in (select id from demo_payments);
 delete from public.payment_allocations where payment_id in (select id from demo_payments);
 delete from public.payments where id in (select id from demo_payments);
 -- La numeración de recibos sigue desde el último recibo real.

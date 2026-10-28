@@ -247,3 +247,38 @@
 - Ficha del alumno: "Dar acceso al portal" crea la cuenta con su CI y muestra el PIN.
 - Listas desplegables: fondo oscuro sólido (en el tema glass se veían en blanco).
 - Pendiente de verificar con un alta real en producción: no se crearon cuentas de prueba en la base real.
+
+## Facturación electrónica — Etapa A, registro manual (28/10/2026)
+- El gimnasio ya es facturador electrónico (MYN FITNEES CENTER E.A.S., RUC 80165579-0, timbrado 18537244) y emite con el facturador gratuito de la DNIT, que no tiene conexión para sistemas. Por eso:
+  - **Etapa A (hecha):** la app arma los datos a facturar, la factura se emite a mano en e-Kuatia y se registra su CDC.
+  - **Etapa B (pendiente):** conectar un proveedor de facturación electrónica para emitir automáticamente. Se sugiere un punto de expedición propio (p. ej. 001-002) para no cruzar la numeración con el facturador gratuito. A confirmar con el contador.
+- La app **no genera ningún documento con formato de factura**: muestra una ficha interna con botones de copiar. El recibo interno sigue diciendo "no válido como factura".
+- Migración `20261105000001_invoicing_manual.sql`:
+  - **Datos fiscales del gimnasio** (`gyms.fiscal_*`): timbrado, vigencia, establecimiento, punto de expedición, actividad, tipo de transacción (por defecto "Prestación de servicios").
+  - **Alumno, opcional:** `billing_ruc` y `billing_name`. El RUC se valida con el dígito verificador módulo 11 de la DNIT.
+  - **`invoices`:** una factura vigente por cobro, CDC único por gimnasio, foto de receptor, ítems, total e IVA. Sin escritura directa. El staff ve todas; el alumno ve las de sus cobros.
+  - **`invoice_draft(pago, sin_nombre)`:** el servidor arma el receptor de la factura:
+    - RUC si el alumno lo tiene cargado;
+    - si no, su cédula;
+    - si el documento no es numérico, documento extranjero;
+    - o "Sin nombre" (innominado) si se elige consumidor final.
+    - Los ítems salen de las cuotas cobradas, con IVA 10% incluido (importe / 11).
+  - **`register_invoice(pago, cdc)`** (admin o recepción):
+    - Valida 44 dígitos, dígito verificador, tipo 01 (factura electrónica), RUC del gimnasio y fecha no futura ni anterior al timbrado.
+    - Toma el número y la fecha de emisión del propio CDC.
+    - Es idempotente.
+  - **`cancel_invoice(factura, motivo, cdc_nc)`** (sólo admin):
+    - Registra la cancelación hecha en e-Kuatia (plazo de 72 h, según el pie del KuDE).
+    - Pasado ese plazo, registra la nota de crédito (CDC tipo 05).
+    - No borra nada.
+  - **`void_payment`:** no anula un cobro con factura vigente.
+- Pantallas:
+  - Configuración: sección "Facturación electrónica".
+  - Ficha del alumno: "Facturar a RUC (opcional)".
+  - Recibo: panel "Factura electrónica" con 1) datos para copiar en e-Kuatia y 2) campo para el CDC, que muestra el número y la fecha antes de guardar. Con factura: número, CDC, consulta en e-Kuatia, cancelar o nota de crédito.
+  - Cobranzas: tarjeta y filtro "Sin facturar", y etiqueta de factura en cada cobro.
+  - Portal del alumno: número de factura y CDC en sus recibos.
+- Para confirmar con el contador:
+  - el tipo de transacción (la factura de ejemplo dice "Venta de mercadería");
+  - si hay un monto máximo para facturar a "Sin nombre";
+  - el trámite y la numeración para pasar a un proveedor en la Etapa B.
