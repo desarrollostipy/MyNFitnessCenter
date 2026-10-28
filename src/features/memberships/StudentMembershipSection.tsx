@@ -16,7 +16,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui
 import { ConfirmDialog, Dialog } from '@/components/ui/dialog'
 import { ReasonDialog } from '@/components/ReasonDialog'
 import { ErrorState, LoadingState } from '@/components/states'
-import { SUBSCRIPTION_STATUS_LABELS, type Charge, type Student, type Subscription } from '@/types/domain'
+import { FIXED_PLAN_DAYS, SUBSCRIPTION_STATUS_LABELS, type Charge, type Student, type Subscription } from '@/types/domain'
 import {
   useCancelSubscription,
   useEnrollMembership,
@@ -271,12 +271,16 @@ function EnrollDialog({ student, onClose }: { student: Student; onClose: () => v
             <Textarea id="m-reason" rows={2} {...register('discount_reason')} />
           </Field>
         )}
-        <CheckboxField
-          id="m-renew"
-          label="Renovación automática"
-          hint="Genera el próximo período y su cuota 7 días antes del vencimiento."
-          {...register('auto_renew')}
-        />
+        {plan && FIXED_PLAN_DAYS[plan.plan_type] ? (
+          <p className="text-sm text-muted-foreground">Los pases diarios y semanales no se renuevan solos: el alumno vuelve a comprarlos.</p>
+        ) : (
+          <CheckboxField
+            id="m-renew"
+            label="Renovación automática"
+            hint="Genera el próximo período y su cuota 7 días antes del vencimiento."
+            {...register('auto_renew')}
+          />
+        )}
         {plan && (
           <div className="rounded-lg bg-muted p-3 text-sm">
             <div className="flex justify-between">

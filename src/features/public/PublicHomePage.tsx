@@ -11,7 +11,7 @@ export function PublicHomePage() {
     <>
       <section className="bg-graphite text-smoke">
         <div className="mx-auto max-w-6xl px-4 pb-24 pt-16 sm:px-6 sm:pt-24">
-          <p className="mb-4 text-sm font-medium uppercase tracking-widest text-brand">Asunción · Paraguay</p>
+          <p className="mb-4 text-sm font-medium uppercase tracking-widest text-brand">Itauguá · Paraguay</p>
           <h1 className="max-w-2xl text-4xl font-black uppercase leading-none tracking-tight sm:text-7xl">
             <span className="text-brand">Entrenar es</span> invertir <span className="text-brand">en tu salud</span>
           </h1>

@@ -14,7 +14,7 @@ import { CheckboxField, MoneyInput, Select, Textarea } from '@/components/ui/for
 import { Badge, Card } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components/states'
-import { FIXED_PLAN_MONTHS, PLAN_TYPE_LABELS, type MembershipPlan, type PlanType } from '@/types/domain'
+import { FIXED_PLAN_DAYS, FIXED_PLAN_MONTHS, PLAN_TYPE_LABELS, type MembershipPlan, type PlanType } from '@/types/domain'
 import { usePlans, useSavePlan, useServices } from './api'
 import { planDurationLabel } from './planUtils'
 
@@ -147,12 +147,17 @@ function PlanDialog({ plan, onClose }: { plan: MembershipPlan | null; onClose: (
   const planType = useWatch({ control, name: 'plan_type' })
   const includedSessions = useWatch({ control, name: 'included_sessions' })
   const fixedMonths = FIXED_PLAN_MONTHS[planType]
+  const fixedDays = FIXED_PLAN_DAYS[planType]
 
   const onTypeChange = (t: PlanType) => {
     const months = FIXED_PLAN_MONTHS[t]
+    const days = FIXED_PLAN_DAYS[t]
     if (months) {
       setValue('duration_unit', 'months')
       setValue('duration_value', months)
+    } else if (days) {
+      setValue('duration_unit', 'days')
+      setValue('duration_value', days)
     } else if (t === 'sessions') {
       setValue('duration_unit', 'days')
       setValue('duration_value', 30)
@@ -161,8 +166,9 @@ function PlanDialog({ plan, onClose }: { plan: MembershipPlan | null; onClose: (
 
   const onSubmit = (v: FormValues) => {
     const months = FIXED_PLAN_MONTHS[v.plan_type]
-    const unit = months ? 'months' : v.duration_unit
-    const value = months ?? v.duration_value
+    const days = FIXED_PLAN_DAYS[v.plan_type]
+    const unit = months ? 'months' : days ? 'days' : v.duration_unit
+    const value = months ?? days ?? v.duration_value
     save.mutate(
       {
         id: plan?.id,
@@ -226,11 +232,15 @@ function PlanDialog({ plan, onClose }: { plan: MembershipPlan | null; onClose: (
             label="Vigencia"
             htmlFor="p-dur"
             error={errors.duration_value?.message}
-            hint={fixedMonths ? 'Fija según el tipo de plan.' : undefined}
+            hint={fixedDays ? 'Fija según el tipo de plan. Los pases no se renuevan solos.' : fixedMonths ? 'Fija según el tipo de plan.' : undefined}
           >
             {/* Para tipos con vigencia fija se muestra el valor; el envío lo fija onSubmit. */}
-            {fixedMonths ? (
-              <Input id="p-dur" readOnly value={fixedMonths === 1 ? '1 mes' : `${fixedMonths} meses`} />
+            {fixedMonths || fixedDays ? (
+              <Input
+                id="p-dur"
+                readOnly
+                value={planDurationLabel({ duration_months: fixedMonths ?? null, duration_days: fixedDays ?? null })}
+              />
             ) : (
               <div className="flex gap-2">
                 <Input id="p-dur" type="number" min={1} className="w-24" {...register('duration_value')} />

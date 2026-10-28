@@ -610,6 +610,29 @@ await test('proceso diario dos veces seguidas no duplica cuotas', async () => {
   assert(r1.renewed === 2 && r2.renewed === 0, JSON.stringify({ r1, r2 }))
 })
 
+await test('pase diario y semanal: vigencia fija y sin renovación automática', async () => {
+  await as(admin2)
+  await expectError(
+    db.query(`insert into public.membership_plans (gym_id, name, plan_type, price, duration_days) values ($1, 'Diario mal', 'daily', 20000, 2)`, [GYM]),
+    '23514',
+  )
+  const day = (
+    await db.query(`insert into public.membership_plans (gym_id, name, plan_type, price, duration_days) values ($1, 'Pase diario', 'daily', 20000, 1) returning id`, [GYM])
+  ).rows[0].id
+  const week = (
+    await db.query(`insert into public.membership_plans (gym_id, name, plan_type, price, duration_days) values ($1, 'Pase semanal', 'weekly', 80000, 7) returning id`, [GYM])
+  ).rows[0].id
+  const d = (await db.query(`select public.enroll_membership($1, $2, $3::date, 0, null, true) as id`, [studentA, day, today])).rows[0].id
+  const w = (await db.query(`select public.enroll_membership($1, $2, $3::date, 0, null, true) as id`, [studentA, week, today])).rows[0].id
+  await db.exec('reset role')
+  const r = await db.query(
+    `select id, auto_renew, (ends_on - starts_on) as span from public.subscriptions where id in ($1, $2) order by span`,
+    [d, w],
+  )
+  assert(r.rows.every((x) => x.auto_renew === false), 'quedó con renovación automática')
+  assert(r.rows[0].span === 0 && r.rows[1].span === 6, JSON.stringify(r.rows))
+})
+
 await test('cuotas vencidas pasan a morosas', async () => {
   await db.exec('reset role')
   const r = await db.query(`select count(*)::int as n from public.charges where status = 'overdue'`)

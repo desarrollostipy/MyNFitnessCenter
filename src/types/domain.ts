@@ -60,9 +60,11 @@ export interface Service {
   sort_order: number
 }
 
-export type PlanType = 'monthly' | 'quarterly' | 'annual' | 'sessions' | 'custom'
+export type PlanType = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annual' | 'sessions' | 'custom'
 
 export const PLAN_TYPE_LABELS: Record<PlanType, string> = {
+  daily: 'Pase diario',
+  weekly: 'Pase semanal',
   monthly: 'Mensual',
   quarterly: 'Trimestral',
   annual: 'Anual',
@@ -72,6 +74,9 @@ export const PLAN_TYPE_LABELS: Record<PlanType, string> = {
 
 /** Duración fija en meses para los tipos estándar. */
 export const FIXED_PLAN_MONTHS: Partial<Record<PlanType, number>> = { monthly: 1, quarterly: 3, annual: 12 }
+
+/** Duración fija en días de los pases cortos; no se renuevan automáticamente. */
+export const FIXED_PLAN_DAYS: Partial<Record<PlanType, number>> = { daily: 1, weekly: 7 }
 
 export interface MembershipPlan {
   id: string
